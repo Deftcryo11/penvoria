@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <meta name="theme-color" content="#11796f" />
+
+    <title>Penvoria | Personal Finance</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- Supabase JavaScript -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+      defer
+    ></script>
+
+    <!-- Application scripts -->
+    <script src="config.js" defer></script>
+    <script src="app.js" defer></script>
+    <script src="cloud.js" defer></script>
+  </head>
+
+  <body class="auth-pending">
+    <!-- =====================================
+       APPLICATION LOADING SCREEN
+       ===================================== -->
+
+    <div id="startupScreen" class="startup-screen">
+      <div class="startup-content">
+        <div class="startup-logo">◈</div>
+
+        <h2>Penvoria</h2>
+
+        <p>Loading your finances...</p>
+
+        <div class="startup-spinner" role="status" aria-label="Loading"></div>
+      </div>
+    </div>
+
+    <!-- =====================================
+       LOGIN / REGISTRATION
+       ===================================== -->
+
+    <section id="authScreen" class="auth-screen" hidden>
+      <div class="auth-card">
+        <div class="auth-brand">
+          <span class="auth-logo">◈</span>
+
+          <div>
+            <h1>Penvoria</h1>
+            <p>Your money. Your plan.</p>
+          </div>
+        </div>
+
+        <h2 id="authHeading">Welcome back</h2>
+
+        <p id="authSubtitle" class="auth-subtitle">
+          Sign in to access your finances.
+        </p>
+
+        <form id="authForm">
+          <div class="field">
+            <label for="authEmail"> Email address </label>
+
+            <input
+              id="authEmail"
+              type="email"
+              autocomplete="email"
+              placeholder="you@example.com"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label for="authPassword"> Password </label>
+
+            <input
+              id="authPassword"
+              type="password"
+              autocomplete="current-password"
+              minlength="6"
+              placeholder="Enter your password"
+              required
+            />
+          </div>
+
+          <p
+            id="authMessage"
+            class="auth-message"
+            role="status"
+            aria-live="polite"
+          ></p>
+
+          <button id="authSubmit" class="primary auth-submit" type="submit">
+            Sign in
+          </button>
+        </form>
+
+        <p class="auth-switch">
+          <span id="authSwitchText"> Don't have an account? </span>
+
+          <button id="authSwitch" type="button">Create account</button>
+        </p>
+      </div>
+    </section>
+
+    <!-- =====================================
+       MAIN APPLICATION
+       ===================================== -->
+
+    <div class="shell">
+      <!-- SIDEBAR -->
+      <aside class="sidebar" id="sidebar">
+        <!-- Brand -->
+        <a class="brand" href="#dashboard">
+          <span class="brand-icon">◈</span>
+
+          <span class="brand-text">
+            <span class="brand-name"> penvoria </span>
+
+            <small class="brand-tagline"> PERSONAL FINANCE </small>
+          </span>
+        </a>
+
+        <!-- Navigation -->
+        <div class="nav-label">WORKSPACE</div>
+
+        <nav aria-label="Main navigation">
+          <button class="nav active" data-view="dashboard" type="button">
+            ▦ <span>Overview</span>
+          </button>
+
+          <button class="nav" data-view="planning" type="button">
+            ▤ <span>Planning</span>
+          </button>
+
+          <button class="nav" data-view="spending" type="button">
+            ▣ <span>Spending</span>
+          </button>
+
+          <button class="nav" data-view="history" type="button">
+            ◷ <span>Monthly history</span>
+          </button>
+        </nav>
+      </aside>
+
+      <!-- MAIN AREA -->
+      <div class="main">
+        <!-- TOP NAVIGATION -->
+        <header class="topbar">
+          <button
+            class="icon-btn menu"
+            id="menuBtn"
+            type="button"
+            aria-label="Toggle menu"
+          >
+            ☰
+          </button>
+
+          <span class="crumb">
+            Personal finance /
+            <b id="crumb">Overview</b>
+          </span>
+
+          <div class="top-actions">
+            <button class="secondary logout-btn" id="logoutBtn" type="button">
+              Log out
+            </button>
+
+            <button
+              class="icon-btn"
+              id="themeBtn"
+              type="button"
+              aria-label="Toggle dark mode"
+            >
+              ☾
+            </button>
+
+            <span class="avatar">P</span>
+          </div>
+        </header>
+
+        <!-- MAIN CONTENT -->
+        <main class="content">
+          <!-- Supabase status -->
+          <div class="cloud-toolbar">
+            <span
+              id="cloudStatus"
+              class="cloud-status"
+              role="status"
+              aria-live="polite"
+            >
+              Connecting...
+            </span>
+          </div>
+
+          <!-- Page heading -->
+          <section class="heading">
+            <div>
+              <div class="eyebrow">YOUR FINANCIAL SPACE</div>
+
+              <h1 id="pageTitle">Overview</h1>
+
+              <p id="pageSubtitle">Make every rufiyaa count.</p>
+            </div>
+
+            <!-- Month and Add Entry -->
+            <div class="heading-actions">
+              <label class="month-label">
+                Month
+
+                <input
+                  id="monthPicker"
+                  type="month"
+                  aria-label="Selected month"
+                />
+              </label>
+
+              <button class="primary" id="addBtn" type="button">
+                + Add entry
+              </button>
+            </div>
+          </section>
+
+          <!-- Dynamic application content -->
+          <div id="app" aria-live="polite"></div>
+
+          <footer>Penvoria · Personal Finance · MVR</footer>
+        </main>
+      </div>
+    </div>
+
+    <!-- =====================================
+       ENTRY MODAL
+       ===================================== -->
+
+    <div id="overlay" class="overlay hidden">
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modalTitle"
+      >
+        <div class="modal-head">
+          <h2 id="modalTitle">New entry</h2>
+
+          <button
+            class="icon-btn"
+            id="closeModal"
+            type="button"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        <form id="entryForm">
+          <div id="formFields"></div>
+
+          <div class="modal-actions">
+            <button class="secondary" type="button" id="cancelBtn">
+              Cancel
+            </button>
+
+            <button class="primary" type="submit">Save entry</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>
