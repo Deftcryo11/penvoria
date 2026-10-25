@@ -1544,18 +1544,6 @@ body.authenticated .auth-screen {
     outline-offset: -2px;
   }
 
-  /* Keep form actions clear of the iPhone keyboard */
-  .modal {
-    max-height: 85vh;
-    max-height: 85dvh;
-    overscroll-behavior: contain;
-  }
-
-  .overlay {
-    z-index: 30;
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
-  }
-}
 
 /* Hide navigation during login and loading */
 body.auth-pending .mobile-bottom-nav,
@@ -1568,54 +1556,67 @@ body.dark .mobile-bottom-nav {
   box-shadow: 0 -5px 24px rgba(0, 0, 0, 0.15);
 }
 
+}
+
 /* ==========================================
-   PENVORIA - iOS MODAL FINAL LAYOUT
-   One scrollable sheet, no nested scrolling
+   PENVORIA - iOS MODAL
+   Clean, keyboard-aware mobile form
    ========================================== */
 
 @media (max-width: 700px) {
-  /* Modal overlay follows the visible viewport */
+
+  /* Prevent background scrolling */
+  body.modal-open {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  /* Modal overlay */
   #overlay {
     position: fixed;
     z-index: 100;
 
-    top: var(--penvoria-vv-top, 0px);
+    top: var(--modal-visual-top, 0px);
     left: 0;
     right: 0;
     bottom: auto;
 
     width: 100%;
-    height: var(--penvoria-vv-height, 100dvh);
+    height: var(--modal-visual-height, 100dvh);
 
     display: flex;
-    align-items: flex-end;
     justify-content: center;
+    align-items: flex-end;
 
     padding: 0;
     margin: 0;
 
     overflow: hidden;
     overscroll-behavior: contain;
+
+    background: rgba(8, 22, 32, 0.65);
   }
 
-  /* The modal is the ONLY scrolling container */
+  /* Single scrolling container */
   #overlay .modal {
     display: block;
+    flex: 0 1 auto;
 
     width: 100%;
     max-width: 500px;
     min-width: 0;
 
     height: auto;
-    max-height: min(650px, calc(100% - 8px));
+    max-height: calc(100% - 8px);
 
     margin: 0;
-    padding: 18px 18px max(16px, env(safe-area-inset-bottom));
-
-    border-radius: 22px 22px 0 0;
+    padding: 16px 16px
+      max(12px, env(safe-area-inset-bottom));
 
     background: var(--panel);
     color: var(--text);
+
+    border-radius: 20px 20px 0 0;
 
     overflow-x: hidden;
     overflow-y: auto;
@@ -1623,90 +1624,96 @@ body.dark .mobile-bottom-nav {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
 
-    /* Hide the scrollbar, not the scrolling */
+    /* Hide visual scrollbar */
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
 
   #overlay .modal::-webkit-scrollbar {
     display: none;
+    width: 0;
   }
 
-  /* Modal heading stays visible while scrolling */
+  /* Modal heading */
   #overlay .modal-head {
-    position: sticky;
-    top: 0;
-    z-index: 2;
+    position: static;
 
     display: flex;
     align-items: center;
     justify-content: space-between;
 
-    margin: 0 0 14px;
-    padding: 4px 0 12px;
+    margin: 0 0 12px;
+    padding: 0;
 
     background: var(--panel);
   }
 
   #overlay .modal-head h2 {
     margin: 0;
+
     font-size: 20px;
+    font-weight: 700;
     line-height: 1.3;
   }
 
-  /* Remove the previous flex-based form scrolling */
+  #overlay #closeModal {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Form layout */
   #entryForm {
     display: block;
 
     width: 100%;
-    min-width: 0;
     height: auto;
+    min-width: 0;
 
-    flex: none;
     overflow: visible;
   }
 
-  /* IMPORTANT: Fields must not scroll separately */
+  /* No nested field scrolling */
   #formFields {
     display: block;
 
     width: 100%;
-    height: auto;
-    min-height: auto;
     max-width: 100%;
+    min-width: 0;
 
-    flex: none;
+    height: auto;
+    min-height: 0;
 
-    padding: 0;
     margin: 0;
+    padding: 0;
 
     overflow: visible !important;
   }
 
-  /* Compact form fields */
+  /* Compact fields */
   #formFields .field {
     display: grid;
-    gap: 7px;
+    gap: 5px;
 
     width: 100%;
     min-width: 0;
 
-    margin: 0 0 15px;
+    margin: 0 0 11px;
     padding: 0;
   }
 
   #formFields .field label {
     display: block;
 
+    width: 100%;
     margin: 0;
-    padding: 0;
 
     font-size: 13px;
     font-weight: 600;
     line-height: 1.4;
   }
 
-  /* Correct iPhone input sizing */
+  /* Inputs */
   #formFields input,
   #formFields select,
   #formFields textarea {
@@ -1715,32 +1722,31 @@ body.dark .mobile-bottom-nav {
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    min-height: 46px;
 
-    padding: 11px 13px;
+    min-height: 44px;
     margin: 0;
+    padding: 9px 12px;
 
     font-size: 16px !important;
-    line-height: 1.4;
+    line-height: 1.35;
 
     box-sizing: border-box;
-    transform: none !important;
 
     border: 1px solid var(--border);
-    border-radius: 11px;
+    border-radius: 10px;
 
     background: var(--bg);
     color: var(--text);
+
+    transform: none !important;
   }
 
-  /* Date field */
   #formFields input[type="date"] {
-    width: 100%;
     min-width: 0;
     max-width: 100%;
   }
 
-  /* Keep buttons accessible */
+  /* Form buttons */
   #overlay .modal-actions {
     position: sticky;
     bottom: 0;
@@ -1750,8 +1756,8 @@ body.dark .mobile-bottom-nav {
     gap: 10px;
 
     width: 100%;
-    margin: 12px 0 0;
-    padding: 14px 0 0;
+    margin: 8px 0 0;
+    padding: 10px 0 0;
 
     background: var(--panel);
     border-top: 1px solid var(--border);
@@ -1759,15 +1765,18 @@ body.dark .mobile-bottom-nav {
 
   #overlay .modal-actions button {
     flex: 1;
-    min-width: 0;
-    min-height: 46px;
 
-    padding: 10px;
+    min-width: 0;
+    min-height: 44px;
+
+    padding: 9px 12px;
+
     font-size: 14px;
+    font-weight: 700;
   }
 
-  /* Remove bottom navigation while form is open */
-  body:has(#overlay:not(.hidden)) .mobile-bottom-nav {
+  /* Hide bottom navigation while editing */
+  body.modal-open .mobile-bottom-nav {
     visibility: hidden;
   }
 }
