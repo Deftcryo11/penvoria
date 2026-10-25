@@ -1817,3 +1817,114 @@ body.dark .mobile-bottom-nav {
     background: var(--panel);
   }
 }
+
+/* =========================================
+   PENVORIA - FINAL iPHONE FORM ALIGNMENT
+   ========================================= */
+
+@media (max-width: 700px) {
+  /* Prevent unexpected text resizing */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* Fix overlay horizontally */
+  #overlay {
+    position: fixed;
+
+    left: 0 !important;
+    right: 0 !important;
+
+    width: 100% !important;
+    max-width: 100vw;
+
+    padding: 0;
+    overflow: hidden;
+  }
+
+  /* Keep form inside the screen */
+  #overlay .modal {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+
+    max-height: calc(100% - 8px);
+
+    padding: 20px 18px max(16px, env(safe-area-inset-bottom));
+
+    margin: 0;
+
+    border-radius: 22px 22px 0 0;
+    overflow: hidden;
+  }
+
+  /* Prevent horizontal scrolling inside fields */
+  #entryForm,
+  #formFields,
+  #formFields .field {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  #formFields {
+    width: 100%;
+
+    overflow-x: hidden !important;
+    overflow-y: auto;
+
+    padding: 2px 1px 8px;
+  }
+
+  /* Restore correct label alignment */
+  #formFields .field label {
+    display: block;
+
+    width: 100%;
+    margin: 0;
+
+    font-size: 14px;
+    line-height: 1.4;
+
+    white-space: normal;
+  }
+
+  /* Prevent iOS focus zoom */
+  #formFields input,
+  #formFields select,
+  #formFields textarea {
+    display: block;
+
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+
+    min-height: 46px;
+
+    padding: 11px 13px;
+
+    font-size: 16px !important;
+    line-height: 1.4;
+
+    box-sizing: border-box;
+
+    transform: none !important;
+  }
+
+  /* Date field sizing */
+  #formFields input[type="date"] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Keep action buttons accessible */
+  .modal-actions {
+    position: relative;
+    z-index: 1;
+
+    flex-shrink: 0;
+    width: 100%;
+
+    background: var(--panel);
+  }
+}
