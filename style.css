@@ -1544,18 +1544,16 @@ body.authenticated .auth-screen {
     outline-offset: -2px;
   }
 
+  /* Hide navigation during login and loading */
+  body.auth-pending .mobile-bottom-nav,
+  body.auth-locked .mobile-bottom-nav {
+    display: none !important;
+  }
 
-/* Hide navigation during login and loading */
-body.auth-pending .mobile-bottom-nav,
-body.auth-locked .mobile-bottom-nav {
-  display: none !important;
-}
-
-/* Dark mode enhancement */
-body.dark .mobile-bottom-nav {
-  box-shadow: 0 -5px 24px rgba(0, 0, 0, 0.15);
-}
-
+  /* Dark mode enhancement */
+  body.dark .mobile-bottom-nav {
+    box-shadow: 0 -5px 24px rgba(0, 0, 0, 0.15);
+  }
 }
 
 /* ==========================================
@@ -1564,7 +1562,6 @@ body.dark .mobile-bottom-nav {
    ========================================== */
 
 @media (max-width: 700px) {
-
   /* Prevent background scrolling */
   body.modal-open {
     overflow: hidden;
@@ -1610,8 +1607,7 @@ body.dark .mobile-bottom-nav {
     max-height: calc(100% - 8px);
 
     margin: 0;
-    padding: 16px 16px
-      max(12px, env(safe-area-inset-bottom));
+    padding: 16px 16px max(12px, env(safe-area-inset-bottom));
 
     background: var(--panel);
     color: var(--text);
@@ -1775,8 +1771,21 @@ body.dark .mobile-bottom-nav {
     font-weight: 700;
   }
 
-  /* Hide bottom navigation while editing */
-  body.modal-open .mobile-bottom-nav {
-    visibility: hidden;
+  /* =========================================
+   MOBILE NAVIGATION VISIBILITY
+   ========================================= */
+
+  @media (max-width: 700px) {
+    /* Hide navigation only while the modal is visible */
+    body:has(#overlay:not(.hidden)) .mobile-bottom-nav {
+      visibility: hidden;
+    }
+
+    /* Restore navigation immediately after closing */
+    body:has(#overlay.hidden) .mobile-bottom-nav {
+      visibility: visible;
+      opacity: 1;
+      pointer-events: auto;
+    }
   }
 }

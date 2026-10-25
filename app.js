@@ -1333,14 +1333,26 @@ function updateSpendingType() {
 }
 
 function closeModal() {
-  $("#overlay").classList.add("hidden");
+  const overlay = document.getElementById("overlay");
+
+  // Dismiss the iPhone keyboard if a form field is focused.
+  const focusedElement = document.activeElement;
+
+  if (focusedElement && overlay.contains(focusedElement)) {
+    focusedElement.blur();
+  }
+
+  // Close the entry form.
+  overlay.classList.add("hidden");
+
+  // Restore normal page scrolling and navigation.
+  document.body.classList.remove("modal-open");
+
+  // Reset the viewport adjustments.
   updateMobileModalViewport();
+
   editing = null;
 }
-
-/* =========================================
-   iPHONE KEYBOARD / MODAL VIEWPORT
-   ========================================= */
 
 /* =========================================
    iOS KEYBOARD VIEWPORT HANDLING
