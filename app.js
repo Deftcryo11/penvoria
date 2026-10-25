@@ -1295,7 +1295,16 @@ function openModal(type, id = null) {
   }
 
   $("#formFields").innerHTML = html;
+
+  // Request the decimal number keypad on phones.
+  $("#formFields")
+    .querySelectorAll('input[type="number"]')
+    .forEach((input) => {
+      input.inputMode = "decimal";
+    });
+
   $("#overlay").classList.remove("hidden");
+  updateMobileModalViewport();
 
   if (type === "expenses" && !record) {
     updateSpendingType();
@@ -1311,8 +1320,50 @@ function updateSpendingType() {
 
 function closeModal() {
   $("#overlay").classList.add("hidden");
+  updateMobileModalViewport();
   editing = null;
 }
+
+/* =========================================
+   iPHONE KEYBOARD / MODAL VIEWPORT
+   ========================================= */
+
+function updateMobileModalViewport() {
+  const overlay = document.getElementById("overlay");
+
+  if (!overlay) return;
+
+  const viewport = window.visualViewport;
+
+  const mobile = window.matchMedia("(max-width: 700px)").matches;
+
+  const modalOpen = !overlay.classList.contains("hidden");
+
+  if (mobile && modalOpen && viewport) {
+    // Keep modal within the visible screen,
+    // excluding the on-screen keyboard.
+    overlay.style.top = `${viewport.offsetTop}px`;
+    overlay.style.left = `${viewport.offsetLeft}px`;
+    overlay.style.width = `${viewport.width}px`;
+    overlay.style.height = `${viewport.height}px`;
+
+    overlay.style.right = "auto";
+    overlay.style.bottom = "auto";
+  } else {
+    // Restore normal overlay positioning.
+    ["top", "left", "width", "height", "right", "bottom"].forEach(
+      (property) => {
+        overlay.style.removeProperty(property);
+      },
+    );
+  }
+}
+
+window.visualViewport?.addEventListener("resize", updateMobileModalViewport);
+
+window.visualViewport?.addEventListener("scroll", updateMobileModalViewport);
+
+window.addEventListener("resize", updateMobileModalViewport);
 
 $("#formFields").addEventListener("change", (event) => {
   if (event.target.id === "f_category") {
