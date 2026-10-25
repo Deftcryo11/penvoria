@@ -1306,6 +1306,20 @@ function openModal(type, id = null) {
   $("#overlay").classList.remove("hidden");
   updateMobileModalViewport();
 
+  // Always open the form at the beginning.
+  const modalElement = document.querySelector("#overlay .modal");
+
+  if (modalElement) {
+    modalElement.scrollTop = 0;
+  }
+
+  const formFields = document.getElementById("formFields");
+
+  if (formFields) {
+    formFields.scrollTop = 0;
+    formFields.scrollLeft = 0;
+  }
+
   if (type === "expenses" && !record) {
     updateSpendingType();
   }
@@ -1337,38 +1351,40 @@ function updateMobileModalViewport() {
 
   if (!overlay) return;
 
-  const viewport = window.visualViewport;
-
-  const isMobile = window.matchMedia("(max-width: 700px)").matches;
+  const mobile = window.matchMedia("(max-width: 700px)").matches;
 
   const isOpen = !overlay.classList.contains("hidden");
 
-  // Remove the previous horizontal positioning.
-  // This prevents the form from shifting sideways.
-  overlay.style.removeProperty("left");
-  overlay.style.removeProperty("right");
-  overlay.style.removeProperty("width");
-  overlay.style.removeProperty("transform");
+  // Clear positioning left by earlier versions.
+  ["top", "left", "right", "bottom", "width", "height", "transform"].forEach(
+    (property) => {
+      overlay.style.removeProperty(property);
+    },
+  );
 
-  if (!isMobile || !isOpen || !viewport) {
-    overlay.style.removeProperty("top");
-    overlay.style.removeProperty("height");
-    overlay.style.removeProperty("bottom");
+  if (!mobile || !isOpen) {
+    overlay.style.removeProperty("--penvoria-vv-height");
+
+    overlay.style.removeProperty("--penvoria-vv-top");
+
     return;
   }
 
-  // Adjust only the vertical position and height
-  // when the iPhone keyboard appears.
-  overlay.style.top = `${viewport.offsetTop}px`;
-  overlay.style.height = `${viewport.height}px`;
-  overlay.style.bottom = "auto";
+  const viewport = window.visualViewport;
 
-  // Prevent form fields from remaining scrolled sideways.
-  const fields = document.getElementById("formFields");
+  if (!viewport) return;
 
-  if (fields && fields.scrollLeft !== 0) {
-    fields.scrollLeft = 0;
-  }
+  // Resize the modal area above the iPhone keyboard.
+  // Do not move or scroll individual form fields.
+  overlay.style.setProperty(
+    "--penvoria-vv-height",
+    `${Math.round(viewport.height)}px`,
+  );
+
+  overlay.style.setProperty(
+    "--penvoria-vv-top",
+    `${Math.max(0, Math.round(viewport.offsetTop))}px`,
+  );
 }
 
 window.visualViewport?.addEventListener("resize", updateMobileModalViewport);
