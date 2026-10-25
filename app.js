@@ -1310,7 +1310,11 @@ function openModal(type, id = null) {
     updateSpendingType();
   }
 
-  $("#formFields input, #formFields select")?.focus();
+  // Automatically focus the first field on desktop only.
+  // On iPhone, allow the user to tap the field manually.
+  if (!window.matchMedia("(max-width: 700px)").matches) {
+    $("#formFields input, #formFields select")?.focus({ preventScroll: true });
+  }
 }
 
 function updateSpendingType() {
@@ -1335,27 +1339,35 @@ function updateMobileModalViewport() {
 
   const viewport = window.visualViewport;
 
-  const mobile = window.matchMedia("(max-width: 700px)").matches;
+  const isMobile = window.matchMedia("(max-width: 700px)").matches;
 
-  const modalOpen = !overlay.classList.contains("hidden");
+  const isOpen = !overlay.classList.contains("hidden");
 
-  if (mobile && modalOpen && viewport) {
-    // Keep modal within the visible screen,
-    // excluding the on-screen keyboard.
-    overlay.style.top = `${viewport.offsetTop}px`;
-    overlay.style.left = `${viewport.offsetLeft}px`;
-    overlay.style.width = `${viewport.width}px`;
-    overlay.style.height = `${viewport.height}px`;
+  // Remove the previous horizontal positioning.
+  // This prevents the form from shifting sideways.
+  overlay.style.removeProperty("left");
+  overlay.style.removeProperty("right");
+  overlay.style.removeProperty("width");
+  overlay.style.removeProperty("transform");
 
-    overlay.style.right = "auto";
-    overlay.style.bottom = "auto";
-  } else {
-    // Restore normal overlay positioning.
-    ["top", "left", "width", "height", "right", "bottom"].forEach(
-      (property) => {
-        overlay.style.removeProperty(property);
-      },
-    );
+  if (!isMobile || !isOpen || !viewport) {
+    overlay.style.removeProperty("top");
+    overlay.style.removeProperty("height");
+    overlay.style.removeProperty("bottom");
+    return;
+  }
+
+  // Adjust only the vertical position and height
+  // when the iPhone keyboard appears.
+  overlay.style.top = `${viewport.offsetTop}px`;
+  overlay.style.height = `${viewport.height}px`;
+  overlay.style.bottom = "auto";
+
+  // Prevent form fields from remaining scrolled sideways.
+  const fields = document.getElementById("formFields");
+
+  if (fields && fields.scrollLeft !== 0) {
+    fields.scrollLeft = 0;
   }
 }
 
