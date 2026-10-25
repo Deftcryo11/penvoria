@@ -1408,3 +1408,162 @@ body.authenticated .auth-screen {
     line-height: 1.5;
   }
 }
+
+/* =========================================
+   PENVORIA - iOS MOBILE APP NAVIGATION
+   ========================================= */
+
+/* Hidden on desktop */
+.mobile-bottom-nav {
+  display: none;
+}
+
+/* Mobile phone layout */
+@media (max-width: 700px) {
+  /* Hide the old hamburger navigation */
+  #menuBtn {
+    display: none;
+  }
+
+  /* Make header fit iPhone screens */
+  .topbar {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    gap: 10px;
+  }
+
+  .crumb {
+    min-width: 0;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .top-actions {
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .logout-btn {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  /* Leave space for bottom navigation */
+  .content {
+    padding-left: max(15px, env(safe-area-inset-left));
+    padding-right: max(15px, env(safe-area-inset-right));
+
+    padding-bottom: calc(110px + env(safe-area-inset-bottom));
+  }
+
+  /* Fixed bottom tab bar */
+  .mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+
+    z-index: 9;
+
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: start;
+
+    min-height: 66px;
+
+    padding-top: 8px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+
+    padding-left: max(6px, env(safe-area-inset-left));
+    padding-right: max(6px, env(safe-area-inset-right));
+
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+
+    box-shadow: 0 -5px 24px rgba(16, 39, 51, 0.06);
+  }
+
+  /* Bottom navigation buttons */
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 0;
+    min-height: 48px;
+    gap: 4px;
+
+    padding: 4px 2px;
+
+    border: 0;
+    border-radius: 10px;
+
+    background: transparent;
+    color: var(--muted);
+
+    font-size: 10px;
+    font-weight: 600;
+
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .mobile-nav-item svg {
+    display: block;
+    width: 21px;
+    height: 21px;
+
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .mobile-nav-item span {
+    white-space: nowrap;
+  }
+
+  /* Selected page */
+  .mobile-nav-item.active {
+    color: var(--accent);
+    background: var(--accent2);
+    font-weight: 700;
+  }
+
+  /* Touch and keyboard accessibility */
+  .mobile-nav-item:active {
+    opacity: 0.7;
+  }
+
+  .mobile-nav-item:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  /* Keep form actions clear of the iPhone keyboard */
+  .modal {
+    max-height: 85vh;
+    max-height: 85dvh;
+    overscroll-behavior: contain;
+  }
+
+  .overlay {
+    z-index: 30;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
+/* Hide navigation during login and loading */
+body.auth-pending .mobile-bottom-nav,
+body.auth-locked .mobile-bottom-nav {
+  display: none !important;
+}
+
+/* Dark mode enhancement */
+body.dark .mobile-bottom-nav {
+  box-shadow: 0 -5px 24px rgba(0, 0, 0, 0.15);
+}

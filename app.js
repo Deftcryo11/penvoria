@@ -1142,8 +1142,22 @@ function render() {
     $("#app").innerHTML = history();
   }
 
+  // Desktop sidebar active state.
   document.querySelectorAll(".nav").forEach((button) => {
     button.classList.toggle("active", button.dataset.view === view);
+  });
+
+  // iPhone bottom navigation active state.
+  document.querySelectorAll("[data-mobile-view]").forEach((button) => {
+    const active = button.dataset.mobileView === view;
+
+    button.classList.toggle("active", active);
+
+    if (active) {
+      button.setAttribute("aria-current", "page");
+    } else {
+      button.removeAttribute("aria-current");
+    }
   });
 
   save();
@@ -1430,6 +1444,31 @@ document.querySelectorAll("[data-view]").forEach((button) => {
     $("#sidebar").classList.remove("open");
     render();
   };
+});
+
+/* =========================================
+   IPHONE BOTTOM NAVIGATION
+   ========================================= */
+
+document.querySelectorAll("[data-mobile-view]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const selectedView = button.dataset.mobileView;
+
+    // Reuse the existing page rendering system.
+    view = selectedView;
+
+    // Close the desktop/mobile sidebar if open.
+    $("#sidebar").classList.remove("open");
+
+    // Display the selected page.
+    render();
+
+    // Start at the top of the selected page.
+    window.scrollTo({
+      top: 0,
+      behavior: "instant",
+    });
+  });
 });
 
 $("#addBtn").onclick = () => {
