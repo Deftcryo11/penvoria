@@ -1789,3 +1789,39 @@ body.authenticated .auth-screen {
     }
   }
 }
+
+/* ==========================================
+   PENVORIA - BACKUP BUTTON
+   ========================================== */
+
+.backup-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 8px 14px;
+
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .cloud-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 10px;
+  }
+
+  .backup-btn {
+    padding: 8px 11px;
+    font-size: 11px;
+  }
+
+  .cloud-status {
+    min-width: 0;
+    font-size: 11px;
+  }
+}

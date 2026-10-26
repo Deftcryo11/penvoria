@@ -1160,7 +1160,8 @@ function render() {
     }
   });
 
-  save();
+  // Rendering only updates the interface.
+  // Database writes happen when financial data changes.
 }
 
 function field(name, label, type, value, extra = "") {
@@ -1489,6 +1490,9 @@ $("#entryForm").addEventListener("submit", (event) => {
     list.push(record);
   }
 
+  // Persist the added or updated entry.
+  save();
+
   closeModal();
   render();
 });
@@ -1519,6 +1523,9 @@ $("#app").addEventListener("click", (event) => {
       data()[type] = data()[type].filter(
         (item) => item.id !== button.dataset.id,
       );
+
+      // Save the updated records to Supabase.
+      save();
 
       render();
     }
@@ -1595,6 +1602,95 @@ $("#themeBtn").onclick = () => {
     document.body.classList.contains("dark") ? "dark" : "light",
   );
 };
+
+/* ==========================================
+   PENVORIA - FINANCIAL DATA BACKUP
+   ========================================== */
+
+async function exportPenvoriaBackup() {
+  const cloud = window.penvoriaCloud;
+
+  // Only allow backup for a signed-in account.
+  if (!cloud?.user) {
+    alert("Please sign in before exporting a backup.");
+    return;
+  }
+
+  const months = state.months || {};
+  const monthCount = Object.keys(months).length;
+
+  if (monthCount === 0) {
+    alert("There are no monthly budgets to export.");
+    return;
+  }
+
+  // Export the current in-memory data, including
+  // changes that may still be waiting to sync.
+  const backup = {
+    application: "Penvoria",
+    format_version: 1,
+    exported_at: new Date().toISOString(),
+    month_count: monthCount,
+    months: months,
+  };
+
+  const json = JSON.stringify(backup, null, 2);
+
+  const blob = new Blob([json], { type: "application/json" });
+
+  const date = new Date().toISOString().slice(0, 10);
+
+  const filename = `penvoria-backup-${date}.json`;
+
+  // On compatible iPhones, offer Save to Files
+  // through the system sharing menu.
+  if (
+    typeof File !== "undefined" &&
+    typeof navigator.share === "function" &&
+    typeof navigator.canShare === "function"
+  ) {
+    const file = new File([blob], filename, { type: "application/json" });
+
+    if (navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: "Penvoria Financial Backup",
+        });
+
+        return;
+      } catch (error) {
+        // The user canceled the Share menu.
+        if (error.name === "AbortError") {
+          return;
+        }
+
+        console.warn("Sharing unavailable, trying download:", error);
+      }
+    }
+  }
+
+  // Standard browser download fallback.
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1000);
+}
+
+// Connect the export button.
+document
+  .getElementById("exportBackupBtn")
+  ?.addEventListener("click", exportPenvoriaBackup);
 
 // The cloud integration will call render()
 // after authentication and data loading.
