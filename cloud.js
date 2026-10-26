@@ -2,6 +2,7 @@
 
 /* ==========================================
    PENVORIA - SUPABASE CLOUD INTEGRATION
+   Reliable synchronization and recovery
    ========================================== */
 
 const config = window.PENVORIA_CONFIG;
@@ -11,7 +12,13 @@ const cloud = {
   user: null,
   ready: false,
   pending: Promise.resolve(),
+  syncing: false,
   failed: false,
+  versions: {},
+  drafts: {},
+  conflicts: new Set(),
+  retryTimer: null,
+  retryCount: 0,
 };
 
 window.penvoriaCloud = cloud;
@@ -21,21 +28,14 @@ let loadingAccount = false;
 
 const authScreen = document.querySelector("#authScreen");
 const startupScreen = document.querySelector("#startupScreen");
-
-function hideStartupScreen() {
-  if (startupScreen) {
-    startupScreen.hidden = true;
-  }
-}
 const authForm = document.querySelector("#authForm");
 const authMessage = document.querySelector("#authMessage");
 const authSubmit = document.querySelector("#authSubmit");
 const cloudStatus = document.querySelector("#cloudStatus");
-const importButton = {
-  hidden: true,
-  disabled: true,
-  textContent: "",
-};
+
+/* ==========================================
+   1. STATUS & SCREEN MANAGEMENT
+   ========================================== */
 
 function setCloudStatus(message, error = false) {
   cloudStatus.textContent = message;
@@ -47,40 +47,71 @@ function setAuthMessage(message, error = false) {
   authMessage.classList.toggle("auth-error", error);
 }
 
-function showLogin() {
+function hideStartupScreen() {
+  if (startupScreen) {
+    startupScreen.hidden = true;
+  }
+}
+
+function clearRetryTimer() {
+  if (cloud.retryTimer !== null) {
+    clearTimeout(cloud.retryTimer);
+    cloud.retryTimer = null;
+  }
+}
+
+function clearCloudMemory() {
+  clearRetryTimer();
+
   cloud.ready = false;
   cloud.user = null;
+  cloud.failed = false;
 
-  // Never leave another account's budgets in memory.
+  cloud.versions = {};
+  cloud.drafts = {};
+  cloud.conflicts = new Set();
+  cloud.retryCount = 0;
+}
+
+function showLogin() {
+  clearCloudMemory();
+
+  // Do not expose another account's budgets.
   state = { months: {} };
 
-  document.body.classList.remove("authenticated");
-  document.body.classList.remove("auth-pending");
+  document.body.classList.remove("authenticated", "auth-pending");
+
   document.body.classList.add("auth-locked");
 
   authScreen.hidden = false;
-  importButton.hidden = true;
-  setAuthMessage("");
 
+  setAuthMessage("");
   hideStartupScreen();
 }
 
 function showDashboard() {
   authScreen.hidden = true;
 
-  document.body.classList.remove("auth-pending");
-  document.body.classList.remove("auth-locked");
+  document.body.classList.remove("auth-pending", "auth-locked");
+
   document.body.classList.add("authenticated");
 
   hideStartupScreen();
 }
 
-function emptyMonth() {
+/* ==========================================
+   2. MONTHLY DATA HELPERS
+   ========================================== */
+
+function normalizeMonth(value) {
   return {
-    income: [],
-    needs: [],
-    expenses: [],
-    savings: [],
+    income: Array.isArray(value?.income) ? value.income : [],
+
+    needs: Array.isArray(value?.needs) ? value.needs : [],
+
+    expenses: Array.isArray(value?.expenses) ? value.expenses : [],
+
+    savings: Array.isArray(value?.savings) ? value.savings : [],
   };
 }
 
@@ -88,47 +119,314 @@ function validMonth(key) {
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(key);
 }
 
-function normalizeMonth(value) {
-  return {
-    ...emptyMonth(),
-    ...(value && typeof value === "object" ? value : {}),
-    income: Array.isArray(value?.income) ? value.income : [],
-    needs: Array.isArray(value?.needs) ? value.needs : [],
-    expenses: Array.isArray(value?.expenses) ? value.expenses : [],
-    savings: Array.isArray(value?.savings) ? value.savings : [],
-  };
+/* ==========================================
+   3. LOCAL RECOVERY FOR UNSAVED CHANGES
+   ========================================== */
+
+// Each user has a separate pending-save area.
+// Only unsynced changes are stored here.
+//
+// WARNING:
+// Pending financial data is stored in readable
+// browser storage until successfully synced.
+
+function draftStorageKey(userId) {
+  return `penvoria-unsynced-v2:${userId}`;
 }
 
-function localBackup() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE) || "null");
+function storeDrafts() {
+  if (!cloud.user) return false;
 
-    if (saved && saved.months) {
-      return Object.fromEntries(
-        Object.entries(saved.months).filter(([key]) => validMonth(key)),
-      );
+  try {
+    const key = draftStorageKey(cloud.user.id);
+
+    if (Object.keys(cloud.drafts).length) {
+      localStorage.setItem(key, JSON.stringify(cloud.drafts));
+    } else {
+      // Remove temporary records after syncing.
+      localStorage.removeItem(key);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Could not save local recovery draft:", error);
+
+    setCloudStatus("Local backup failed — export a backup now", true);
+
+    return false;
+  }
+}
+
+function restoreDrafts(userId, serverMonths) {
+  cloud.drafts = {};
+  cloud.conflicts.clear();
+
+  try {
+    const stored = JSON.parse(
+      localStorage.getItem(draftStorageKey(userId)) || "{}",
+    );
+
+    if (!stored || typeof stored !== "object" || Array.isArray(stored)) {
+      return;
+    }
+
+    for (const [key, draft] of Object.entries(stored)) {
+      if (!validMonth(key) || !draft || !draft.data) {
+        continue;
+      }
+
+      const baseRevision = draft.baseRevision || null;
+
+      cloud.drafts[key] = {
+        data: normalizeMonth(draft.data),
+        baseRevision,
+        token: draft.token || crypto.randomUUID(),
+      };
+
+      // Recover locally unsaved edits.
+      serverMonths[key] = cloud.drafts[key].data;
+
+      // Detect changes made by another device.
+      if ((cloud.versions[key] || null) !== baseRevision) {
+        cloud.conflicts.add(key);
+      }
     }
   } catch (error) {
-    console.warn("Unable to read local backup.", error);
+    console.error("Could not restore pending changes:", error);
+
+    setCloudStatus("Could not read local pending changes", true);
   }
-
-  return {};
-}
-
-function updateImportButton() {
-  const localMonths = localBackup();
-  const cloudMonths = state.months;
-
-  const missing = Object.keys(localMonths).filter(
-    (key) => !Object.hasOwn(cloudMonths, key),
-  );
-
-  importButton.hidden = missing.length === 0;
-  importButton.textContent = `Import local budgets (${missing.length})`;
 }
 
 /* ==========================================
-   CLOUD READ
+   4. SYNCHRONIZATION STATUS
+   ========================================== */
+
+function updateSyncStatus() {
+  const count = Object.keys(cloud.drafts).length;
+
+  if (cloud.conflicts.size) {
+    setCloudStatus(
+      `Sync conflict (${cloud.conflicts.size} month(s)) — export backup`,
+      true,
+    );
+  } else if (count === 0) {
+    cloud.failed = false;
+    setCloudStatus("All changes saved");
+  } else if (!navigator.onLine) {
+    setCloudStatus(`${count} unsynced month(s) — offline`, true);
+  } else if (cloud.syncing) {
+    setCloudStatus(`Saving ${count} month(s)...`);
+  } else {
+    setCloudStatus(`${count} month(s) waiting to sync`, cloud.failed);
+  }
+}
+
+/* ==========================================
+   5. SAFE SUPABASE WRITES
+   ========================================== */
+
+// The database creates a new revision whenever
+// a monthly budget is updated.
+//
+// Only update when the existing revision matches
+// the version previously loaded by this device.
+
+async function writeMonth(monthKey, draft, userId) {
+  const update = {
+    data: draft.data,
+  };
+
+  // This month does not exist in the cloud yet.
+  if (draft.baseRevision === null) {
+    const { data: row, error } = await cloud.client
+      .from("monthly_budgets")
+      .insert({
+        user_id: userId,
+        month: `${monthKey}-01`,
+        ...update,
+      })
+      .select("revision")
+      .single();
+
+    // Another device created this month first.
+    if (error?.code === "23505") {
+      return { conflict: true };
+    }
+
+    if (error) throw error;
+
+    return {
+      revision: row.revision,
+    };
+  }
+
+  // Existing month: save only if it is unchanged.
+  const { data: row, error } = await cloud.client
+    .from("monthly_budgets")
+    .update(update)
+    .eq("user_id", userId)
+    .eq("month", `${monthKey}-01`)
+    .eq("revision", draft.baseRevision)
+    .select("revision")
+    .maybeSingle();
+
+  if (error) throw error;
+
+  // No matching revision means the record changed
+  // since we last loaded it.
+  if (!row) {
+    return { conflict: true };
+  }
+
+  return {
+    revision: row.revision,
+  };
+}
+
+/* ==========================================
+   6. AUTOMATIC RETRY
+   ========================================== */
+
+function scheduleRetry() {
+  if (cloud.retryTimer !== null || !cloud.ready) {
+    return;
+  }
+
+  // Exponential retry delay, capped at 30 seconds.
+  const seconds = Math.min(30, 2 ** Math.min(++cloud.retryCount, 5));
+
+  cloud.retryTimer = setTimeout(() => {
+    cloud.retryTimer = null;
+
+    void flushCloudQueue();
+  }, seconds * 1000);
+}
+
+/* ==========================================
+   7. CLOUD SAVE QUEUE
+   ========================================== */
+
+function flushCloudQueue() {
+  if (!cloud.ready || !cloud.user || cloud.syncing) {
+    return cloud.pending;
+  }
+
+  if (!navigator.onLine) {
+    updateSyncStatus();
+    return cloud.pending;
+  }
+
+  cloud.syncing = true;
+
+  const userId = cloud.user.id;
+
+  clearRetryTimer();
+  updateSyncStatus();
+
+  cloud.pending = (async () => {
+    try {
+      while (cloud.ready && cloud.user?.id === userId) {
+        const next = Object.entries(cloud.drafts).find(([key]) => {
+          return !cloud.conflicts.has(key);
+        });
+
+        if (!next) break;
+
+        const [key, draft] = next;
+
+        try {
+          const result = await writeMonth(key, draft, userId);
+
+          if (cloud.user?.id !== userId) {
+            break;
+          }
+
+          if (result.conflict) {
+            cloud.conflicts.add(key);
+            cloud.failed = true;
+
+            console.warn(`Penvoria sync conflict for ${key}`);
+
+            // Preserve the local changes.
+            // Never overwrite the newer cloud version.
+            continue;
+          }
+
+          cloud.versions[key] = result.revision;
+
+          const latest = cloud.drafts[key];
+
+          if (latest?.token === draft.token) {
+            // This edit has finished syncing.
+            delete cloud.drafts[key];
+          } else if (latest) {
+            // A newer local edit happened during
+            // the previous network request.
+            latest.baseRevision = result.revision;
+          }
+
+          storeDrafts();
+
+          cloud.retryCount = 0;
+        } catch (error) {
+          cloud.failed = true;
+
+          console.error("Penvoria sync failed:", error);
+
+          // Keep the unsynced snapshot for retry.
+          scheduleRetry();
+
+          break;
+        }
+      }
+    } finally {
+      cloud.syncing = false;
+      updateSyncStatus();
+    }
+  })();
+
+  return cloud.pending;
+}
+
+// Called by the existing save() in app.js.
+
+cloud.queueSave = function (monthKey, record) {
+  if (!cloud.ready || !cloud.user || !validMonth(monthKey)) {
+    return;
+  }
+
+  const existing = cloud.drafts[monthKey];
+
+  cloud.drafts[monthKey] = {
+    data: JSON.parse(JSON.stringify(normalizeMonth(record))),
+
+    // Preserve the original revision while
+    // changes are still pending.
+    baseRevision: existing
+      ? existing.baseRevision
+      : cloud.versions[monthKey] || null,
+
+    token: crypto.randomUUID(),
+  };
+
+  // Preserve a copy before starting the request.
+  const protectedLocally = storeDrafts();
+
+  if (!protectedLocally) {
+    alert(
+      "This device could not preserve the pending change. " +
+        "Export a backup before closing Penvoria.",
+    );
+  }
+
+  updateSyncStatus();
+
+  void flushCloudQueue();
+};
+
+/* ==========================================
+   8. LOAD USER'S CLOUD BUDGETS
    ========================================== */
 
 async function loadAccount() {
@@ -140,7 +438,6 @@ async function loadAccount() {
   try {
     setCloudStatus("Loading cloud budgets...");
 
-    // Check the actual authenticated user.
     const { data: userData, error: userError } =
       await cloud.client.auth.getUser();
 
@@ -151,57 +448,65 @@ async function loadAccount() {
       return;
     }
 
-    const activeUser = userData.user;
-    cloud.user = activeUser;
+    const account = userData.user;
+
+    cloud.user = account;
 
     const { data: rows, error } = await cloud.client
       .from("monthly_budgets")
-      .select("month,data")
-      .eq("user_id", activeUser.id)
+      .select("month,data,revision")
+      .eq("user_id", account.id)
       .order("month", { ascending: true });
 
     if (error) throw error;
 
-    // Do not reuse budgets from a previous account.
-    const loaded = {};
+    const months = {};
+
+    cloud.versions = {};
 
     for (const row of rows || []) {
       const key = row.month.slice(0, 7);
 
-      if (validMonth(key)) {
-        loaded[key] = normalizeMonth(row.data);
-      }
+      if (!validMonth(key)) continue;
+
+      months[key] = normalizeMonth(row.data);
+
+      cloud.versions[key] = row.revision;
     }
 
-    state = { months: loaded };
+    // Recover changes saved locally during
+    // a previous interrupted session.
+    restoreDrafts(account.id, months);
+
+    state = {
+      months,
+    };
+
+    showDashboard();
+
+    // render() only updates the interface.
+    render();
 
     cloud.ready = true;
     cloud.failed = false;
 
-    showDashboard();
+    updateSyncStatus();
 
-    // Render without creating a save operation.
-    cloud.ready = false;
-    render();
-    cloud.ready = true;
-
-    setCloudStatus("Cloud data loaded");
-    // Fresh setup: do not offer local budget imports.
-    importButton.hidden = true;
+    // Retry any recovered unsynced months.
+    void flushCloudQueue();
   } catch (error) {
     console.error("Cloud loading failed:", error);
 
-    // Do not activate editing with incomplete data.
     cloud.ready = false;
 
-    document.body.classList.remove("authenticated");
-    document.body.classList.add("auth-locked");
-    authScreen.hidden = false;
+    document.body.classList.remove("authenticated", "auth-pending");
 
-    setAuthMessage(
-      "Could not load your budgets. Refresh to retry. " + error.message,
-      true,
-    );
+    document.body.classList.add("auth-locked");
+
+    authScreen.hidden = false;
+    hideStartupScreen();
+
+    setAuthMessage("Could not load budgets. " + error.message, true);
 
     setCloudStatus("Cloud connection failed", true);
   } finally {
@@ -210,56 +515,7 @@ async function loadAccount() {
 }
 
 /* ==========================================
-   CLOUD WRITE
-   ========================================== */
-
-cloud.queueSave = function (monthKey, record) {
-  if (!cloud.ready || !cloud.user) return;
-
-  const userId = cloud.user.id;
-
-  // Capture the month at the time of the edit,
-  // even if the user switches months immediately.
-  const snapshot = JSON.parse(JSON.stringify(normalizeMonth(record)));
-
-  const row = {
-    user_id: userId,
-    month: `${monthKey}-01`,
-    data: snapshot,
-    updated_at: new Date().toISOString(),
-  };
-
-  setCloudStatus("Saving...");
-
-  // Keep writes in order so rapid edits do not
-  // overwrite newer edits with older requests.
-  cloud.pending = cloud.pending
-    .catch(() => {})
-    .then(async () => {
-      if (!cloud.user || cloud.user.id !== userId) {
-        throw new Error("Account changed before save.");
-      }
-
-      const { error } = await cloud.client.from("monthly_budgets").upsert(row, {
-        onConflict: "user_id,month",
-      });
-
-      if (error) throw error;
-
-      cloud.failed = false;
-      setCloudStatus("All changes saved");
-    })
-    .catch((error) => {
-      cloud.failed = true;
-      setCloudStatus("Save failed — do not refresh. Check connection.", true);
-
-      console.error("Budget save failed:", error);
-      throw error;
-    });
-};
-
-/* ==========================================
-   AUTHENTICATION
+   9. AUTHENTICATION
    ========================================== */
 
 function setAuthMode(mode) {
@@ -300,10 +556,7 @@ authForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   if (!cloud.client?.auth) {
-    setAuthMessage(
-      "Supabase is not connected. " + "Check config.js and refresh the page.",
-      true,
-    );
+    setAuthMessage("Supabase is not connected. Refresh the page.", true);
     return;
   }
 
@@ -312,6 +565,7 @@ authForm.addEventListener("submit", async (event) => {
   const password = document.querySelector("#authPassword").value;
 
   authSubmit.disabled = true;
+
   setAuthMessage("Please wait...");
 
   try {
@@ -330,8 +584,7 @@ authForm.addEventListener("submit", async (event) => {
         await loadAccount();
       } else {
         setAuthMessage(
-          "Check your email for the confirmation link. " +
-            "After confirming, return and sign in.",
+          "Check your email for the confirmation link, then sign in.",
         );
       }
     } else {
@@ -351,21 +604,30 @@ authForm.addEventListener("submit", async (event) => {
   }
 });
 
+/* ==========================================
+   10. SAFE LOGOUT
+   ========================================== */
+
 document.querySelector("#logoutBtn").addEventListener("click", async () => {
   if (!cloud.user) return;
 
-  setCloudStatus("Finishing saves...");
+  // Never discard unsynced edits during logout.
+  if (Object.keys(cloud.drafts).length) {
+    await flushCloudQueue();
 
-  // Wait for all previously submitted writes.
-  try {
-    await cloud.pending;
-  } catch (error) {
-    alert(
-      "A cloud save failed. Please check your connection " +
-        "and retry before logging out.",
-    );
-    return;
+    if (Object.keys(cloud.drafts).length) {
+      alert(
+        "Unsynced changes remain. " +
+          "Connect to the internet or resolve the conflict " +
+          "before logging out. " +
+          "You can export a backup now.",
+      );
+
+      return;
+    }
   }
+
+  await cloud.pending;
 
   const { error } = await cloud.client.auth.signOut();
 
@@ -378,13 +640,33 @@ document.querySelector("#logoutBtn").addEventListener("click", async () => {
 });
 
 /* ==========================================
-   STARTUP
+   11. CONNECTION & APP VISIBILITY
+   ========================================== */
+
+// Retry when internet returns.
+window.addEventListener("online", () => {
+  if (cloud.ready) {
+    void flushCloudQueue();
+  }
+});
+
+// Display offline status.
+window.addEventListener("offline", updateSyncStatus);
+
+// Retry when returning to the iPhone app.
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && cloud.ready) {
+    void flushCloudQueue();
+  }
+});
+
+/* ==========================================
+   12. INITIALIZE SUPABASE
    ========================================== */
 
 async function initializeCloud() {
   document.body.classList.add("auth-pending");
 
-  // Hide login while checking the existing session.
   authScreen.hidden = true;
   authSubmit.disabled = true;
 
@@ -400,7 +682,7 @@ async function initializeCloud() {
       config.publishableKey.includes("YOUR_SUPABASE")
     ) {
       throw new Error(
-        "Please configure your Supabase credentials in config.js.",
+        "Set your Supabase URL and publishable key in config.js.",
       );
     }
 
@@ -414,7 +696,7 @@ async function initializeCloud() {
     );
 
     if (!cloud.client?.auth) {
-      throw new Error("Supabase authentication failed to initialize.");
+      throw new Error("Supabase authentication failed.");
     }
 
     const { data, error } = await cloud.client.auth.getSession();
@@ -424,10 +706,8 @@ async function initializeCloud() {
     authSubmit.disabled = false;
 
     if (data.session) {
-      // Existing login: go straight to dashboard.
       await loadAccount();
     } else {
-      // No session: display login screen.
       showLogin();
     }
   } catch (error) {
@@ -436,6 +716,7 @@ async function initializeCloud() {
     cloud.ready = false;
 
     document.body.classList.remove("auth-pending");
+
     document.body.classList.add("auth-locked");
 
     authScreen.hidden = false;
@@ -447,4 +728,4 @@ async function initializeCloud() {
   }
 }
 
-initializeCloud();
+void initializeCloud();
