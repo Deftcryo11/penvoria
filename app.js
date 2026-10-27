@@ -1,6 +1,7 @@
+
 "use strict";
 
-// Reuse existing Velmora local storage.
+// Penvoria personal finance application
 const STORAGE = "velmora-preview-v1";
 const THEME = "velmora-theme";
 
@@ -100,10 +101,7 @@ let view = "dashboard";
 let editing = null;
 
 function save() {
-  // After sign-in, save into the user's
-  // Supabase account rather than the old
-  // shared localStorage budget key.
-
+  // Save into the authenticated Supabase account.
   if (window.penvoriaCloud && window.penvoriaCloud.ready) {
     window.penvoriaCloud.queueSave(month, data());
   }
@@ -130,12 +128,19 @@ function data(selectedMonth = month) {
   return record;
 }
 
-// Keep older category names available.
+// ==========================================
+// CATEGORY HELPERS
+// ==========================================
+
 function categoryOf(item, type) {
   const original =
-    type === "needs" ? item.category || item.title : item.category;
+    type === "needs"
+      ? item.category || item.title
+      : item.category;
 
-  return CATEGORIES.includes(original) ? original : "Other / Custom";
+  return CATEGORIES.includes(original)
+    ? original
+    : "Other / Custom";
 }
 
 function categoryName(item, type) {
@@ -153,8 +158,6 @@ function categoryName(item, type) {
 }
 
 function isNeed(expense) {
-  // An expense uses a planned allocation if its
-  // category matches a category in Planning.
   const expenseCategory = categoryName(expense, "expenses");
 
   return data().needs.some(
@@ -162,13 +165,44 @@ function isNeed(expense) {
   );
 }
 
+// ==========================================
+// FINANCIAL CALCULATIONS
+// ==========================================
+
 function totals(record) {
+  // Planned amounts.
   const income = total(record.income);
   const needBudget = total(record.needs);
   const savings = total(record.savings);
   const expenses = total(record.expenses);
 
-  // Combine allocations with the same category.
+  // Actual amounts.
+  // Legacy income entries default to received.
+  const incomeReceived = round(
+    record.income.reduce(
+      (sum, item) =>
+        sum + Number(item.received ?? item.amount ?? 0),
+      0,
+    ),
+  );
+
+  const savingsTransferred = round(
+    record.savings.reduce(
+      (sum, item) =>
+        sum + Number(item.transferred ?? 0),
+      0,
+    ),
+  );
+
+  const cashRemainder = round(
+    incomeReceived - expenses - savingsTransferred,
+  );
+
+  const savingsStillToTransfer = round(
+    savings - savingsTransferred,
+  );
+
+  // Combine allocations in matching categories.
   const allocations = new Map();
 
   record.needs.forEach((need) => {
@@ -176,11 +210,14 @@ function totals(record) {
 
     allocations.set(
       category,
-      round((allocations.get(category) || 0) + Number(need.amount || 0)),
+      round(
+        (allocations.get(category) || 0) +
+        Number(need.amount || 0),
+      ),
     );
   });
 
-  // Calculate actual spending by category.
+  // Calculate expenses per category.
   const spentByCategory = new Map();
 
   record.expenses.forEach((expense) => {
@@ -188,7 +225,10 @@ function totals(record) {
 
     spentByCategory.set(
       category,
-      round((spentByCategory.get(category) || 0) + Number(expense.amount || 0)),
+      round(
+        (spentByCategory.get(category) || 0) +
+        Number(expense.amount || 0),
+      ),
     );
   });
 
@@ -218,17 +258,25 @@ function totals(record) {
     });
   });
 
-  // Includes unallocated expenses and category overages.
+  // Unallocated expenses and overspending.
   const otherActual = round(expenses - coveredByNeeds);
 
-  const spendingBudget = round(income - needBudget - savings);
+  const spendingBudget = round(
+    income - needBudget - savings,
+  );
 
-  const remaining = round(spendingBudget - otherActual);
+  const remaining = round(
+    spendingBudget - otherActual,
+  );
 
   return {
     income,
+    incomeReceived,
     needBudget,
     savings,
+    savingsTransferred,
+    savingsStillToTransfer,
+    cashRemainder,
     expenses,
     needsActual: round(needsActual),
     otherActual,
@@ -242,7 +290,17 @@ function totals(record) {
   };
 }
 
-function stat(label, value, description, symbol = "◈", css = "") {
+// ==========================================
+// DISPLAY HELPERS
+// ==========================================
+
+function stat(
+  label,
+  value,
+  description,
+  symbol = "◈",
+  css = "",
+) {
   return `
     <article class="stat">
       <div class="stat-top">
@@ -263,15 +321,19 @@ function stat(label, value, description, symbol = "◈", css = "") {
 
 function actionButtons(type, item) {
   return `
-    <button class="mini-btn"
-            data-edit="${type}"
-            data-id="${escapeHtml(item.id)}">
+    <button
+      class="mini-btn"
+      data-edit="${type}"
+      data-id="${escapeHtml(item.id)}"
+    >
       Edit
     </button>
 
-    <button class="mini-btn danger"
-            data-delete="${type}"
-            data-id="${escapeHtml(item.id)}">
+    <button
+      class="mini-btn danger"
+      data-delete="${type}"
+      data-id="${escapeHtml(item.id)}"
+    >
       Delete
     </button>
   `;
@@ -290,17 +352,30 @@ function entryTable(items, type) {
   const headings =
     type === "needs"
       ? ["Category", "Monthly plan", "Actions"]
-      : ["Description", "Category / date", "Amount", "Actions"];
+      : [
+          "Description",
+          "Category / date",
+          "Amount",
+          "Actions",
+        ];
 
   const rows = items
     .slice()
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+    .sort((a, b) =>
+      (b.date || "").localeCompare(a.date || ""),
+    )
     .map((item) => {
       if (type === "needs") {
         return `
           <tr>
-            <td><b>${escapeHtml(categoryName(item, type))}</b></td>
-            <td class="amount">${money(item.amount)}</td>
+            <td>
+              <b>${escapeHtml(categoryName(item, type))}</b>
+            </td>
+
+            <td class="amount">
+              ${money(item.amount)}
+            </td>
+
             <td>${actionButtons(type, item)}</td>
           </tr>
         `;
@@ -309,15 +384,22 @@ function entryTable(items, type) {
       const meta =
         type === "expenses"
           ? `${escapeHtml(categoryName(item, type))}
-           · ${escapeHtml(item.date || "")}
-           · ${isNeed(item) ? "Essential" : "Other"}`
+             · ${escapeHtml(item.date || "")}
+             · ${isNeed(item) ? "Essential" : "Other"}`
           : escapeHtml(item.date || "");
 
       return `
         <tr>
-          <td><b>${escapeHtml(item.title)}</b></td>
+          <td>
+            <b>${escapeHtml(item.title)}</b>
+          </td>
+
           <td>${meta}</td>
-          <td class="amount">${money(item.amount)}</td>
+
+          <td class="amount">
+            ${money(item.amount)}
+          </td>
+
           <td>${actionButtons(type, item)}</td>
         </tr>
       `;
@@ -329,7 +411,9 @@ function entryTable(items, type) {
       <table class="data">
         <thead>
           <tr>
-            ${headings.map((heading) => `<th>${heading}</th>`).join("")}
+            ${headings
+              .map((heading) => `<th>${heading}</th>`)
+              .join("")}
           </tr>
         </thead>
 
@@ -369,50 +453,57 @@ function compactEntries(items, type) {
                 : item.date || "Monthly entry";
 
           return `
-          <div class="compact-entry">
-            <div class="compact-entry-info">
-              <strong>${escapeHtml(heading)}</strong>
-              <small>${escapeHtml(subtitle)}</small>
-            </div>
+            <div class="compact-entry">
+              <div class="compact-entry-info">
+                <strong>${escapeHtml(heading)}</strong>
+                <small>${escapeHtml(subtitle)}</small>
+              </div>
 
-            <div class="compact-entry-side">
-              <strong class="compact-amount">
-                ${money(item.amount)}
-              </strong>
+              <div class="compact-entry-side">
+                <strong class="compact-amount">
+                  ${money(item.amount)}
+                </strong>
 
-              <div class="compact-actions">
-                <button
-                  class="mini-btn"
-                  data-edit="${type}"
-                  data-id="${escapeHtml(item.id)}"
-                  type="button"
-                >
-                  Edit
-                </button>
+                <div class="compact-actions">
+                  <button
+                    class="mini-btn"
+                    data-edit="${type}"
+                    data-id="${escapeHtml(item.id)}"
+                    type="button"
+                  >
+                    Edit
+                  </button>
 
-                <button
-                  class="mini-btn danger"
-                  data-delete="${type}"
-                  data-id="${escapeHtml(item.id)}"
-                  type="button"
-                >
-                  Delete
-                </button>
+                  <button
+                    class="mini-btn danger"
+                    data-delete="${type}"
+                    data-id="${escapeHtml(item.id)}"
+                    type="button"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        `;
+          `;
         })
         .join("")}
     </div>
   `;
 }
 
+// ==========================================
+// OVERVIEW
+// ==========================================
+
 function overview(record, values) {
   const {
     income,
+    incomeReceived,
     needBudget,
     savings,
+    savingsTransferred,
+    cashRemainder,
     spendingBudget,
     otherActual,
     remaining,
@@ -420,26 +511,47 @@ function overview(record, values) {
   } = values;
 
   const allocated = needBudget + savings;
+
   const allocatedPercent =
-    income > 0 ? Math.min(100, (allocated / income) * 100) : 0;
+    income > 0
+      ? Math.min(100, (allocated / income) * 100)
+      : 0;
 
   const spentPercent =
     spendingBudget > 0
-      ? Math.min(100, (otherActual / spendingBudget) * 100)
+      ? Math.min(
+          100,
+          (otherActual / spendingBudget) * 100,
+        )
       : 0;
 
   const latestExpenses = record.expenses.slice();
 
   return `
     <div class="cards">
-      ${stat("Monthly income", income, "Total income recorded", "↗")}
-
-      ${stat("Planned needs", needBudget, "Money reserved for essentials", "▤")}
-
-      ${stat("Planned savings", savings, "Savings allocations", "◇")}
+      ${stat(
+        "Monthly income",
+        income,
+        "Total income recorded",
+        "↗",
+      )}
 
       ${stat(
-        "Money remaining",
+        "Planned needs",
+        needBudget,
+        "Money reserved for essentials",
+        "▤",
+      )}
+
+      ${stat(
+        "Planned savings",
+        savings,
+        "Savings allocations",
+        "◇",
+      )}
+
+      ${stat(
+        "General budget left",
         remaining,
         "After allocations and other spending",
         "◈",
@@ -447,12 +559,88 @@ function overview(record, values) {
       )}
     </div>
 
+    <!-- Planned vs Actual -->
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Planned vs. actual</h2>
+
+          <p class="panel-sub">
+            Compare allocations with money actually
+            received, paid, or transferred.
+          </p>
+        </div>
+      </div>
+
+      <div class="history-list">
+        <div class="history-row">
+          <span>Planned income</span>
+          <b>${money(income)}</b>
+        </div>
+
+        <div class="history-row">
+          <span>Income actually received</span>
+          <b>${money(incomeReceived)}</b>
+        </div>
+
+        <div class="history-row">
+          <span>
+            Needs allocated / expenses paid
+            in matching categories
+          </span>
+
+          <b>
+            ${money(needBudget)} /
+            ${money(needsActual)}
+          </b>
+        </div>
+
+        <div class="history-row">
+          <span>
+            Savings planned / actually transferred
+          </span>
+
+          <b>
+            ${money(savings)} /
+            ${money(savingsTransferred)}
+          </b>
+        </div>
+
+        <div class="history-row">
+          <span>Total expenses recorded</span>
+          <b>${money(values.expenses)}</b>
+        </div>
+
+        <div class="history-row balance-row">
+          <span>
+            <b>Actual monthly cash remainder</b>
+          </span>
+
+          <b class="${
+            cashRemainder < 0
+              ? "negative"
+              : "positive"
+          }">
+            ${money(cashRemainder)}
+          </b>
+        </div>
+      </div>
+
+      <p class="hint" style="margin:14px 0 0">
+        Received income minus recorded expenses
+        and completed savings transfers.
+        This excludes opening balances and is not
+        your bank-account balance.
+      </p>
+    </section>
+
     <div class="dashboard-grid">
       <div>
         <section class="panel">
           <div class="panel-head">
             <div>
               <h2>Monthly budget overview</h2>
+
               <p class="panel-sub">
                 How your income is allocated
               </p>
@@ -486,8 +674,15 @@ function overview(record, values) {
             </div>
 
             <div class="history-row balance-row">
-              <span><b>Remaining balance</b></span>
-              <b class="${remaining < 0 ? "negative" : "positive"}">
+              <span>
+                <b>General budget remaining</b>
+              </span>
+
+              <b class="${
+                remaining < 0
+                  ? "negative"
+                  : "positive"
+              }">
                 ${money(remaining)}
               </b>
             </div>
@@ -496,6 +691,7 @@ function overview(record, values) {
 
         <section class="panel">
           <h2>Recent spending</h2>
+
           <p class="panel-sub">
             Your latest non-essential expenses
           </p>
@@ -503,31 +699,35 @@ function overview(record, values) {
           ${
             latestExpenses.length
               ? `
-              <div class="history-list">
-                ${latestExpenses
-                  .map(
-                    (item) => `
-                  <div class="history-row">
-                    <span>
-                      <b>${escapeHtml(item.title)}</b>
-                      <div class="muted">
-                        ${escapeHtml(categoryName(item, "expenses"))}
-                        · ${escapeHtml(item.date || "")}
-                      </div>
-                    </span>
+                <div class="history-list">
+                  ${latestExpenses
+                    .map(
+                      (item) => `
+                        <div class="history-row">
+                          <span>
+                            <b>${escapeHtml(item.title)}</b>
 
-                    <b>${money(item.amount)}</b>
-                  </div>
-                `,
-                  )
-                  .join("")}
-              </div>
-            `
+                            <div class="muted">
+                              ${escapeHtml(
+                                categoryName(item, "expenses"),
+                              )}
+
+                              · ${escapeHtml(item.date || "")}
+                            </div>
+                          </span>
+
+                          <b>${money(item.amount)}</b>
+                        </div>
+                      `,
+                    )
+                    .join("")}
+                </div>
+              `
               : `
-              <div class="empty">
-                No other expenses recorded this month.
-              </div>
-            `
+                <div class="empty">
+                  No other expenses recorded this month.
+                </div>
+              `
           }
         </section>
       </div>
@@ -535,6 +735,7 @@ function overview(record, values) {
       <div>
         <section class="panel">
           <h2>Income allocation</h2>
+
           <p class="panel-sub">
             Needs and savings reserved
           </p>
@@ -544,9 +745,10 @@ function overview(record, values) {
           </div>
 
           <div class="progress">
-            <div class="fill"
-                 style="width:${allocatedPercent}%">
-            </div>
+            <div
+              class="fill"
+              style="width:${allocatedPercent}%"
+            ></div>
           </div>
 
           <div class="flex-between">
@@ -557,6 +759,7 @@ function overview(record, values) {
 
         <section class="panel">
           <h2>Spending progress</h2>
+
           <p class="panel-sub">
             Other expenses versus spending budget
           </p>
@@ -566,14 +769,20 @@ function overview(record, values) {
           </div>
 
           <div class="progress">
-            <div class="fill"
-                 style="width:${spentPercent}%">
-            </div>
+            <div
+              class="fill"
+              style="width:${spentPercent}%"
+            ></div>
           </div>
 
           <div class="flex-between">
             <span class="muted">Budget left</span>
-            <b class="${remaining < 0 ? "negative" : "positive"}">
+
+            <b class="${
+              remaining < 0
+                ? "negative"
+                : "positive"
+            }">
               ${money(remaining)}
             </b>
           </div>
@@ -581,6 +790,7 @@ function overview(record, values) {
 
         <section class="panel">
           <h2>Needs tracking</h2>
+
           <p class="panel-sub">
             Actual essential payments recorded previously
           </p>
@@ -600,33 +810,44 @@ function overview(record, values) {
   `;
 }
 
-/* ==========================================
-   PENVORIA - COPY PREVIOUS MONTH
-   ========================================== */
+// ==========================================
+// COPY PREVIOUS MONTH
+// ==========================================
 
-// Get the month immediately before the selected month.
-// Handles January -> December automatically.
 function previousMonthKey(targetMonth) {
-  const [year, monthNumber] = targetMonth.split("-").map(Number);
+  const [year, monthNumber] = targetMonth
+    .split("-")
+    .map(Number);
 
-  const previous = new Date(Date.UTC(year, monthNumber - 2, 1));
+  const previous = new Date(
+    Date.UTC(year, monthNumber - 2, 1),
+  );
 
   return previous.toISOString().slice(0, 7);
 }
 
-// Move a dated entry into the destination month.
-// Example: January 31 -> February 28 or 29.
 function moveEntryDateToMonth(originalDate, targetMonth) {
-  const dayMatch = /^\d{4}-\d{2}-(\d{2})$/.exec(String(originalDate || ""));
+  const match = /^\d{4}-\d{2}-(\d{2})$/.exec(
+    String(originalDate || ""),
+  );
 
-  const requestedDay = dayMatch ? Number(dayMatch[1]) : 1;
+  const requestedDay = match
+    ? Number(match[1])
+    : 1;
 
   const year = Number(targetMonth.slice(0, 4));
   const monthNumber = Number(targetMonth.slice(5, 7));
 
-  const lastDay = new Date(year, monthNumber, 0).getDate();
+  const lastDay = new Date(
+    year,
+    monthNumber,
+    0,
+  ).getDate();
 
-  const day = Math.min(Math.max(requestedDay, 1), lastDay);
+  const day = Math.min(
+    Math.max(requestedDay, 1),
+    lastDay,
+  );
 
   return `${targetMonth}-${String(day).padStart(2, "0")}`;
 }
@@ -644,100 +865,126 @@ function copyPreviousMonthPlanning() {
 
   const types = ["income", "needs", "savings"];
 
-  // Check whether the previous month contains a plan.
   const hasSourcePlanning =
     source &&
     types.some(
-      (type) => Array.isArray(source[type]) && source[type].length > 0,
+      (type) =>
+        Array.isArray(source[type]) &&
+        source[type].length > 0,
     );
 
   if (!hasSourcePlanning) {
     alert(
-      `There is no planning data to copy from ` + `${monthLabel(sourceMonth)}.`,
+      `There is no planning data to copy from ` +
+      `${monthLabel(sourceMonth)}.`,
     );
+
     return;
   }
 
-  // Get the currently selected destination month.
   const target = data(targetMonth);
 
-  // Never overwrite a month that already has a plan.
-  const hasExistingPlanning = types.some((type) => target[type].length > 0);
-
-  if (hasExistingPlanning) {
+  if (
+    types.some(
+      (type) => target[type].length > 0,
+    )
+  ) {
     alert(
-      `${monthLabel(targetMonth)} already has ` +
-        `income, needs, or savings entries.\n\n` +
-        `To prevent duplicates or overwriting data, ` +
-        `copying is only available for months ` +
-        `without an existing plan.`,
+      `${monthLabel(targetMonth)} already has a plan. ` +
+      `Copying is limited to months without income, ` +
+      `needs, or savings entries.`,
     );
+
     return;
   }
-
-  const incomeCount = source.income?.length || 0;
-  const needsCount = source.needs?.length || 0;
-  const savingsCount = source.savings?.length || 0;
 
   const confirmed = confirm(
     `Copy planning from ${monthLabel(sourceMonth)} ` +
-      `to ${monthLabel(targetMonth)}?\n\n` +
-      `Income: ${incomeCount} entries\n` +
-      `Needs: ${needsCount} allocations\n` +
-      `Savings: ${savingsCount} entries\n\n` +
-      `Expenses will not be copied.\n` +
-      `Existing expenses in ${monthLabel(targetMonth)} ` +
-      `will be preserved.`,
+    `to ${monthLabel(targetMonth)}?\n\n` +
+    `Income: ${source.income?.length || 0} entries\n` +
+    `Needs: ${source.needs?.length || 0} allocations\n` +
+    `Savings: ${source.savings?.length || 0} entries\n\n` +
+    `Expenses will not be copied. ` +
+    `Existing expenses will be preserved.`,
   );
 
   if (!confirmed) return;
 
-  // Copy only planning records.
   for (const type of types) {
-    const entries = Array.isArray(source[type]) ? source[type] : [];
+    target[type] = (source[type] || []).map(
+      (item) => {
+        const copy = {
+          ...item,
+          id: makeId(),
+        };
 
-    target[type] = entries.map((item) => {
-      const copy = {
-        ...item,
-        id: makeId(),
-      };
+        // New month: reset actual activity.
+        if (type === "income") {
+          copy.received = 0;
+        }
 
-      // Needs allocations have no transaction date.
-      if (type !== "needs") {
-        copy.date = moveEntryDateToMonth(item.date, targetMonth);
-      }
+        if (type === "savings") {
+          copy.transferred = 0;
+        }
 
-      return copy;
-    });
+        if (type !== "needs") {
+          copy.date = moveEntryDateToMonth(
+            item.date,
+            targetMonth,
+          );
+        }
+
+        return copy;
+      },
+    );
   }
 
-  // Do not copy or modify target.expenses.
-
-  // Save to Supabase using the reliable queue.
+  // Existing expenses are not changed.
   save();
-
-  // Refresh the current Planning screen.
   render();
 
   alert(
-    `Planning copied to ${monthLabel(targetMonth)}.\n\n` +
-      `Review income and savings amounts before using ` +
-      `this month's budget.`,
+    `Planning copied to ${monthLabel(targetMonth)}. ` +
+    `Review all planned amounts.`,
   );
 }
 
+// ==========================================
+// PLANNING
+// ==========================================
+
 function planning(record, values) {
-  const { income, needBudget, savings, spendingBudget } = values;
+  const {
+    income,
+    needBudget,
+    savings,
+    spendingBudget,
+  } = values;
 
   const paidNeeds = record.expenses.filter(isNeed);
 
   return `
     <div class="cards">
-      ${stat("Total income", income, "Income available this month", "↗")}
+      ${stat(
+        "Total income",
+        income,
+        "Income available this month",
+        "↗",
+      )}
 
-      ${stat("Needs allocation", needBudget, "Reserved for essentials", "▤")}
+      ${stat(
+        "Needs allocation",
+        needBudget,
+        "Reserved for essentials",
+        "▤",
+      )}
 
-      ${stat("Savings allocation", savings, "Money planned for savings", "◇")}
+      ${stat(
+        "Savings allocation",
+        savings,
+        "Money planned for savings",
+        "◇",
+      )}
 
       ${stat(
         "Available to spend",
@@ -748,16 +995,14 @@ function planning(record, values) {
       )}
     </div>
 
-    
-    <!-- Copy previous month's planning -->
+    <!-- Copy previous month's plan -->
     <section class="panel copy-month-panel">
       <div class="panel-head">
         <div>
           <h2>Start with last month's plan</h2>
 
           <p class="panel-sub">
-            Copy income sources, needs allocations,
-            and savings from
+            Copy income, needs and savings from
             ${monthLabel(previousMonthKey(month))}.
             Expenses are never copied.
           </p>
@@ -778,12 +1023,16 @@ function planning(record, values) {
       <div class="panel-head">
         <div>
           <h2>1. Monthly income</h2>
+
           <p class="panel-sub">
             Add your salary, bonuses and other income.
           </p>
         </div>
 
-        <button class="secondary" data-add="income">
+        <button
+          class="secondary"
+          data-add="income"
+        >
           + Add income
         </button>
       </div>
@@ -796,12 +1045,16 @@ function planning(record, values) {
       <div class="panel-head">
         <div>
           <h2>2. Needs & monthly budgets</h2>
+
           <p class="panel-sub">
             Allocate money for essential monthly costs.
           </p>
         </div>
 
-        <button class="secondary" data-add="needs">
+        <button
+          class="secondary"
+          data-add="needs"
+        >
           + Add need
         </button>
       </div>
@@ -816,18 +1069,18 @@ function planning(record, values) {
       ${
         paidNeeds.length
           ? `
-          <h3 class="comparison-title">
-            Previously recorded essential payments
-          </h3>
+            <h3 class="comparison-title">
+              Previously recorded essential payments
+            </h3>
 
-          <p class="panel-sub">
-            These payments stay in your history.
-            They are not deducted again from your
-            discretionary spending budget.
-          </p>
+            <p class="panel-sub">
+              These payments stay in your history.
+              They are not deducted again from
+              your discretionary spending budget.
+            </p>
 
-          ${entryTable(paidNeeds, "expenses")}
-        `
+            ${entryTable(paidNeeds, "expenses")}
+          `
           : ""
       }
     </section>
@@ -837,12 +1090,16 @@ function planning(record, values) {
       <div class="panel-head">
         <div>
           <h2>3. Savings allocation</h2>
+
           <p class="panel-sub">
             Plan how much money to set aside each month.
           </p>
         </div>
 
-        <button class="secondary" data-add="savings">
+        <button
+          class="secondary"
+          data-add="savings"
+        >
           + Add savings
         </button>
       </div>
@@ -853,6 +1110,20 @@ function planning(record, values) {
         <span>Total savings allocated</span>
         <strong>${money(savings)}</strong>
       </div>
+
+      <div class="planning-total">
+        <span>Actually transferred to savings</span>
+        <strong>
+          ${money(values.savingsTransferred)}
+        </strong>
+      </div>
+
+      <div class="planning-total">
+        <span>Still planned for transfer</span>
+        <strong>
+          ${money(values.savingsStillToTransfer)}
+        </strong>
+      </div>
     </section>
 
     <!-- Planning result -->
@@ -860,6 +1131,7 @@ function planning(record, values) {
       <div class="panel-head">
         <div>
           <h2>Monthly planning result</h2>
+
           <p class="panel-sub">
             What remains after your allocations
           </p>
@@ -883,9 +1155,15 @@ function planning(record, values) {
         </div>
 
         <div class="history-row balance-row">
-          <span><b>Available spending budget</b></span>
+          <span>
+            <b>Available spending budget</b>
+          </span>
 
-          <b class="${spendingBudget < 0 ? "negative" : "positive"}">
+          <b class="${
+            spendingBudget < 0
+              ? "negative"
+              : "positive"
+          }">
             ${money(spendingBudget)}
           </b>
         </div>
@@ -894,16 +1172,21 @@ function planning(record, values) {
       ${
         spendingBudget < 0
           ? `
-          <p class="budget-warning">
-            Your needs and savings allocations exceed
-            your monthly income. Review your plan.
-          </p>
-        `
+            <p class="budget-warning">
+              Your needs and savings allocations
+              exceed your monthly income.
+              Review your plan.
+            </p>
+          `
           : ""
       }
     </section>
   `;
 }
+
+// ==========================================
+// SPENDING
+// ==========================================
 
 function spending(record, values) {
   const {
@@ -917,25 +1200,42 @@ function spending(record, values) {
 
   const usedPercent =
     spendingBudget > 0
-      ? Math.min(100, (otherActual / spendingBudget) * 100)
+      ? Math.min(
+          100,
+          (otherActual / spendingBudget) * 100,
+        )
       : 0;
 
-  // Expenses with no matching planned allocation.
-  const unallocatedExpenses = record.expenses.filter((expense) => {
-    const category = categoryName(expense, "expenses");
+  const unallocatedExpenses = record.expenses.filter(
+    (expense) => {
+      const category = categoryName(
+        expense,
+        "expenses",
+      );
 
-    return !categoryBudgets.some((budget) => budget.category === category);
-  });
+      return !categoryBudgets.some(
+        (budget) => budget.category === category,
+      );
+    },
+  );
 
-  const unallocatedTotal = total(unallocatedExpenses);
+  const unallocatedTotal = total(
+    unallocatedExpenses,
+  );
 
-  // Category cards showing allocations and spending.
   const allocationCards = categoryBudgets
     .map((budget) => {
-      const { category, planned, spent, remaining: categoryRemaining } = budget;
+      const {
+        category,
+        planned,
+        spent,
+        remaining: categoryRemaining,
+      } = budget;
 
       const percentage =
-        planned > 0 ? Math.min(100, (spent / planned) * 100) : 0;
+        planned > 0
+          ? Math.min(100, (spent / planned) * 100)
+          : 0;
 
       const isOver = categoryRemaining < 0;
 
@@ -944,12 +1244,15 @@ function spending(record, values) {
           <div class="allocation-top">
             <div>
               <h3>${escapeHtml(category)}</h3>
+
               <p class="muted">
                 Monthly allocation
               </p>
             </div>
 
-            <span class="allocation-status ${isOver ? "over" : ""}">
+            <span class="allocation-status ${
+              isOver ? "over" : ""
+            }">
               ${isOver ? "Over budget" : "Allocated"}
             </span>
           </div>
@@ -970,9 +1273,13 @@ function spending(record, values) {
                 ${isOver ? "Over by" : "Remaining"}
               </span>
 
-              <strong class="${isOver ? "negative" : "positive"}">
+              <strong class="${
+                isOver ? "negative" : "positive"
+              }">
                 ${money(
-                  isOver ? Math.abs(categoryRemaining) : categoryRemaining,
+                  isOver
+                    ? Math.abs(categoryRemaining)
+                    : categoryRemaining,
                 )}
               </strong>
             </div>
@@ -980,7 +1287,9 @@ function spending(record, values) {
 
           <div class="progress">
             <div
-              class="fill ${isOver ? "over-fill" : ""}"
+              class="fill ${
+                isOver ? "over-fill" : ""
+              }"
               style="width:${percentage}%"
             ></div>
           </div>
@@ -1013,7 +1322,12 @@ function spending(record, values) {
         "▤",
       )}
 
-      ${stat("Total expenses", expenses, "All recorded payments", "↙")}
+      ${stat(
+        "Total expenses",
+        expenses,
+        "All recorded payments",
+        "↙",
+      )}
 
       ${stat(
         "General budget used",
@@ -1050,7 +1364,9 @@ function spending(record, values) {
 
       <div class="progress">
         <div
-          class="fill ${remaining < 0 ? "over-fill" : ""}"
+          class="fill ${
+            remaining < 0 ? "over-fill" : ""
+          }"
           style="width:${usedPercent}%"
         ></div>
       </div>
@@ -1060,7 +1376,11 @@ function spending(record, values) {
           General budget remaining
         </span>
 
-        <b class="${remaining < 0 ? "negative" : "positive"}">
+        <b class="${
+          remaining < 0
+            ? "negative"
+            : "positive"
+        }">
           ${money(remaining)}
         </b>
       </div>
@@ -1069,8 +1389,8 @@ function spending(record, values) {
         spendingBudget < 0
           ? `
             <p class="budget-warning">
-              Your planned needs and savings already
-              exceed your monthly income.
+              Your planned needs and savings
+              already exceed your monthly income.
             </p>
           `
           : ""
@@ -1080,8 +1400,8 @@ function spending(record, values) {
         remaining < 0
           ? `
             <p class="budget-warning">
-              Your available spending budget has
-              been exceeded.
+              Your available spending budget
+              has been exceeded.
             </p>
           `
           : ""
@@ -1196,7 +1516,9 @@ function regularSection(type, record, values) {
       <div class="panel-head">
         <div>
           <h2>
-            ${isIncome ? "Income sources" : "Savings contributions"}
+            ${isIncome
+              ? "Income sources"
+              : "Savings contributions"}
           </h2>
 
           <p class="panel-sub">
@@ -1208,7 +1530,10 @@ function regularSection(type, record, values) {
           </p>
         </div>
 
-        <button class="secondary" data-add="${type}">
+        <button
+          class="secondary"
+          data-add="${type}"
+        >
           + Add
         </button>
       </div>
@@ -1218,12 +1543,19 @@ function regularSection(type, record, values) {
   `;
 }
 
+// ==========================================
+// MONTHLY HISTORY
+// ==========================================
+
 function history() {
-  const months = Object.keys(state.months).sort().reverse();
+  const months = Object.keys(state.months)
+    .sort()
+    .reverse();
 
   return `
     <section class="panel">
       <h2>Monthly history</h2>
+
       <p class="panel-sub">
         View previously recorded months.
       </p>
@@ -1234,33 +1566,40 @@ function history() {
             const values = totals(data(key));
 
             return `
-            <div class="history-row">
-              <div>
-                <b>${monthLabel(key)}</b>
+              <div class="history-row">
+                <div>
+                  <b>${monthLabel(key)}</b>
 
-                <div class="muted">
-                  Income ${money(values.income)}
-                  · Expenses ${money(values.expenses)}
-                  · Saved ${money(values.savings)}
+                  <div class="muted">
+                    Income ${money(values.income)}
+                    · Expenses ${money(values.expenses)}
+                    · Planned savings ${money(values.savings)}
+                    · Transferred ${money(values.savingsTransferred)}
+                  </div>
+                </div>
+
+                <div>
+                  <b>${money(values.remaining)}</b>
+
+                  <button
+                    class="mini-btn"
+                    data-month="${key}"
+                  >
+                    Open →
+                  </button>
                 </div>
               </div>
-
-              <div>
-                <b>${money(values.remaining)}</b>
-
-                <button class="mini-btn"
-                        data-month="${key}">
-                  Open →
-                </button>
-              </div>
-            </div>
-          `;
+            `;
           })
           .join("")}
       </div>
     </section>
   `;
 }
+
+// ==========================================
+// PAGE RENDERING
+// ==========================================
 
 const viewNames = {
   dashboard: "Overview",
@@ -1285,37 +1624,60 @@ function render() {
 
   if (view === "dashboard") {
     $("#app").innerHTML = overview(record, values);
+
   } else if (view === "planning") {
     $("#app").innerHTML = planning(record, values);
+
   } else if (view === "spending") {
     $("#app").innerHTML = spending(record, values);
+
   } else if (view === "history") {
     $("#app").innerHTML = history();
   }
 
-  // Desktop sidebar active state.
-  document.querySelectorAll(".nav").forEach((button) => {
-    button.classList.toggle("active", button.dataset.view === view);
-  });
+  // Desktop sidebar.
+  document.querySelectorAll(".nav").forEach(
+    (button) => {
+      button.classList.toggle(
+        "active",
+        button.dataset.view === view,
+      );
+    },
+  );
 
-  // iPhone bottom navigation active state.
-  document.querySelectorAll("[data-mobile-view]").forEach((button) => {
-    const active = button.dataset.mobileView === view;
+  // iPhone bottom navigation.
+  document
+    .querySelectorAll("[data-mobile-view]")
+    .forEach((button) => {
+      const active =
+        button.dataset.mobileView === view;
 
-    button.classList.toggle("active", active);
+      button.classList.toggle("active", active);
 
-    if (active) {
-      button.setAttribute("aria-current", "page");
-    } else {
-      button.removeAttribute("aria-current");
-    }
-  });
+      if (active) {
+        button.setAttribute(
+          "aria-current",
+          "page",
+        );
+      } else {
+        button.removeAttribute("aria-current");
+      }
+    });
 
-  // Rendering only updates the interface.
-  // Database writes happen when financial data changes.
+  // Rendering does not trigger a cloud write.
 }
 
-function field(name, label, type, value, extra = "") {
+// ==========================================
+// FORM HELPERS
+// ==========================================
+
+function field(
+  name,
+  label,
+  type,
+  value,
+  extra = "",
+) {
   return `
     <div class="field">
       <label for="f_${name}">
@@ -1341,30 +1703,46 @@ function categoryField(record, type) {
       ? "Groceries"
       : "Other / Custom";
 
-  const custom = record ? categoryName(record, type) : "";
+  const custom = record
+    ? categoryName(record, type)
+    : "";
 
   return `
     <div class="field">
-      <label for="f_category">Category</label>
+      <label for="f_category">
+        Category
+      </label>
 
-      <select name="category" id="f_category">
+      <select
+        name="category"
+        id="f_category"
+      >
         ${CATEGORIES.map(
           (category) => `
-          <option
-            value="${escapeHtml(category)}"
-            ${selected === category ? "selected" : ""}
-          >
-            ${escapeHtml(category)}
-          </option>
-        `,
+            <option
+              value="${escapeHtml(category)}"
+              ${
+                selected === category
+                  ? "selected"
+                  : ""
+              }
+            >
+              ${escapeHtml(category)}
+            </option>
+          `,
         ).join("")}
       </select>
     </div>
 
-    <div class="field"
-         id="customCategoryRow"
-         ${selected === "Other / Custom" ? "" : "hidden"}>
-
+    <div
+      class="field"
+      id="customCategoryRow"
+      ${
+        selected === "Other / Custom"
+          ? ""
+          : "hidden"
+      }
+    >
       <label for="f_customCategory">
         Custom category
       </label>
@@ -1380,8 +1758,16 @@ function categoryField(record, type) {
   `;
 }
 
+// ==========================================
+// ADD / EDIT MODAL
+// ==========================================
+
 function openModal(type, id = null) {
-  const record = id ? data()[type].find((item) => item.id === id) : null;
+  const record = id
+    ? data()[type].find(
+        (item) => item.id === id,
+      )
+    : null;
 
   if (id && !record) return;
 
@@ -1400,6 +1786,7 @@ function openModal(type, id = null) {
 
   if (type === "needs") {
     html = categoryField(record, type);
+
   } else {
     html = field(
       "title",
@@ -1418,23 +1805,60 @@ function openModal(type, id = null) {
     html += categoryField(record, type);
   }
 
+  // Planned amount or transaction amount.
   html += field(
     "amount",
-    type === "needs" ? "Monthly planned amount (MVR)" : "Amount (MVR)",
+    type === "needs"
+      ? "Monthly planned amount (MVR)"
+      : type === "income"
+        ? "Planned income (MVR)"
+        : type === "savings"
+          ? "Planned savings (MVR)"
+          : "Amount (MVR)",
     "number",
     record?.amount ?? "",
     'min="0.01" step="0.01"',
   );
 
+  // Income actually received.
+  if (type === "income") {
+    html += field(
+      "received",
+      "Income received so far (MVR)",
+      "number",
+      record
+        ? (record.received ?? record.amount)
+        : 0,
+      'min="0" step="0.01"',
+    );
+  }
+
+  // Savings actually transferred.
+  if (type === "savings") {
+    html += field(
+      "transferred",
+      "Actually transferred to savings (MVR)",
+      "number",
+      record?.transferred ?? 0,
+      'min="0" step="0.01"',
+    );
+  }
+
   if (type !== "needs") {
     const year = Number(month.slice(0, 4));
     const monthNumber = Number(month.slice(5, 7));
 
-    const lastDay = new Date(year, monthNumber, 0).getDate();
+    const lastDay = new Date(
+      year,
+      monthNumber,
+      0,
+    ).getDate();
 
     const defaultDate =
       todayMonth() === month
-        ? `${month}-${String(new Date().getDate()).padStart(2, "0")}`
+        ? `${month}-${String(
+            new Date().getDate(),
+          ).padStart(2, "0")}`
         : `${month}-01`;
 
     html += field(
@@ -1448,7 +1872,7 @@ function openModal(type, id = null) {
 
   $("#formFields").innerHTML = html;
 
-  // Request the decimal number keypad on phones.
+  // Decimal keyboard on phones.
   $("#formFields")
     .querySelectorAll('input[type="number"]')
     .forEach((input) => {
@@ -1461,8 +1885,8 @@ function openModal(type, id = null) {
 
   updateMobileModalViewport();
 
-  // Reset only the modal's scroll position.
-  const modalElement = document.querySelector("#overlay .modal");
+  const modalElement =
+    document.querySelector("#overlay .modal");
 
   if (modalElement) {
     modalElement.scrollTop = 0;
@@ -1472,261 +1896,399 @@ function openModal(type, id = null) {
     updateSpendingType();
   }
 
-  // Automatically focus the first field on desktop only.
-  // On iPhone, allow the user to tap the field manually.
-  if (!window.matchMedia("(max-width: 700px)").matches) {
-    $("#formFields input, #formFields select")?.focus({ preventScroll: true });
+  // Desktop-only autofocus.
+  if (
+    !window.matchMedia(
+      "(max-width: 700px)",
+    ).matches
+  ) {
+    $("#formFields input, #formFields select")
+      ?.focus({ preventScroll: true });
   }
 }
 
 function updateSpendingType() {
-  // Categories remain selectable, but new Spending entries
-  // always count as non-essential expenses.
+  // Category classification is handled
+  // by the existing allocation system.
 }
 
 function closeModal() {
-  const overlay = document.getElementById("overlay");
+  const overlay = $("#overlay");
 
-  // Dismiss the iPhone keyboard if a form field is focused.
-  const focusedElement = document.activeElement;
-
-  if (focusedElement && overlay.contains(focusedElement)) {
-    focusedElement.blur();
+  if (
+    document.activeElement &&
+    overlay.contains(document.activeElement)
+  ) {
+    document.activeElement.blur();
   }
 
-  // Close the entry form.
   overlay.classList.add("hidden");
 
-  // Restore normal page scrolling and navigation.
   document.body.classList.remove("modal-open");
 
-  // Reset the viewport adjustments.
   updateMobileModalViewport();
 
   editing = null;
 }
 
-/* =========================================
-   iOS KEYBOARD VIEWPORT HANDLING
-   ========================================= */
+// ==========================================
+// IPHONE KEYBOARD / VIEWPORT
+// ==========================================
 
 function updateMobileModalViewport() {
   const overlay = document.getElementById("overlay");
 
   if (!overlay) return;
 
-  const isMobile = window.matchMedia("(max-width: 700px)").matches;
+  const mobile = window.matchMedia(
+    "(max-width: 700px)",
+  ).matches;
 
-  const isOpen = !overlay.classList.contains("hidden");
-
-  // Remove positioning left by earlier versions.
-  ["top", "left", "right", "bottom", "width", "height", "transform"].forEach(
-    (property) => {
-      overlay.style.removeProperty(property);
-    },
+  const opened = !overlay.classList.contains(
+    "hidden",
   );
 
-  if (!isMobile || !isOpen) {
-    overlay.style.removeProperty("--modal-visual-top");
+  // Clear previous inline positioning.
+  for (const property of [
+    "top",
+    "left",
+    "right",
+    "bottom",
+    "width",
+    "height",
+    "transform",
+  ]) {
+    overlay.style.removeProperty(property);
+  }
 
-    overlay.style.removeProperty("--modal-visual-height");
+  if (
+    !mobile ||
+    !opened ||
+    !window.visualViewport
+  ) {
+    overlay.style.removeProperty(
+      "--modal-visual-top",
+    );
+
+    overlay.style.removeProperty(
+      "--modal-visual-height",
+    );
 
     return;
   }
 
   const viewport = window.visualViewport;
 
-  if (!viewport) return;
+  overlay.style.setProperty(
+    "--modal-visual-top",
+    `${Math.max(
+      0,
+      Math.round(viewport.offsetTop),
+    )}px`,
+  );
 
-  // Only update the overlay dimensions.
-  // Do not scroll or move individual form fields.
   overlay.style.setProperty(
     "--modal-visual-height",
     `${Math.round(viewport.height)}px`,
   );
-
-  overlay.style.setProperty(
-    "--modal-visual-top",
-    `${Math.max(0, Math.round(viewport.offsetTop))}px`,
-  );
 }
 
-// Update when the keyboard changes viewport height.
-window.visualViewport?.addEventListener("resize", updateMobileModalViewport);
+window.visualViewport?.addEventListener(
+  "resize",
+  updateMobileModalViewport,
+);
 
-window.addEventListener("resize", updateMobileModalViewport);
+window.addEventListener(
+  "resize",
+  updateMobileModalViewport,
+);
 
-// Refresh measurements after rotating the iPhone.
-window.addEventListener("orientationchange", updateMobileModalViewport);
+window.addEventListener(
+  "orientationchange",
+  updateMobileModalViewport,
+);
 
-$("#formFields").addEventListener("change", (event) => {
-  if (event.target.id === "f_category") {
-    const isCustom = event.target.value === "Other / Custom";
+// ==========================================
+// FORM EVENTS
+// ==========================================
 
-    $("#customCategoryRow").hidden = !isCustom;
+$("#formFields").addEventListener(
+  "change",
+  (event) => {
+    if (event.target.id === "f_category") {
+      const isCustom =
+        event.target.value === "Other / Custom";
 
-    updateSpendingType();
-  }
-});
+      $("#customCategoryRow").hidden = !isCustom;
 
-$("#entryForm").addEventListener("submit", (event) => {
-  event.preventDefault();
+      updateSpendingType();
+    }
+  },
+);
 
-  if (!editing) return;
+$("#entryForm").addEventListener(
+  "submit",
+  (event) => {
+    event.preventDefault();
 
-  const formData = new FormData(event.currentTarget);
-  const amount = round(formData.get("amount"));
+    if (!editing) return;
 
-  if (!Number.isFinite(amount) || amount <= 0) {
-    alert("Enter a valid positive amount.");
-    return;
-  }
+    const formData = new FormData(
+      event.currentTarget,
+    );
 
-  const { type, id } = editing;
+    const amount = round(
+      formData.get("amount"),
+    );
 
-  const record = {
-    id: id || makeId(),
-    amount,
-  };
+    if (
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
+      alert("Enter a valid positive amount.");
+      return;
+    }
 
-  if (type === "needs" || type === "expenses") {
-    record.category = String(formData.get("category") || "Other / Custom");
+    const { type, id } = editing;
 
-    if (record.category === "Other / Custom") {
-      record.customCategory = String(
-        formData.get("customCategory") || "",
-      ).trim();
+    const record = {
+      id: id || makeId(),
+      amount,
+    };
 
-      if (!record.customCategory) {
-        alert("Enter a custom category.");
+    // Actual received income.
+    if (type === "income") {
+      const received = Number(
+        formData.get("received"),
+      );
+
+      if (
+        !Number.isFinite(received) ||
+        received < 0
+      ) {
+        alert(
+          "Enter a valid received income amount.",
+        );
+        return;
+      }
+
+      record.received = round(received);
+    }
+
+    // Actual savings transfers.
+    if (type === "savings") {
+      const transferred = Number(
+        formData.get("transferred"),
+      );
+
+      if (
+        !Number.isFinite(transferred) ||
+        transferred < 0
+      ) {
+        alert(
+          "Enter a valid transferred savings amount.",
+        );
+        return;
+      }
+
+      record.transferred = round(transferred);
+    }
+
+    if (
+      type === "needs" ||
+      type === "expenses"
+    ) {
+      record.category = String(
+        formData.get("category") ||
+        "Other / Custom",
+      );
+
+      if (
+        record.category === "Other / Custom"
+      ) {
+        record.customCategory = String(
+          formData.get("customCategory") ||
+          "",
+        ).trim();
+
+        if (!record.customCategory) {
+          alert("Enter a custom category.");
+          return;
+        }
+      }
+    }
+
+    record.title =
+      type === "needs"
+        ? categoryName(record, "needs")
+        : String(
+            formData.get("title") || "",
+          ).trim();
+
+    if (!record.title) {
+      alert("Enter a description.");
+      return;
+    }
+
+    if (type !== "needs") {
+      record.date = String(
+        formData.get("date") || "",
+      );
+
+      if (
+        !record.date.startsWith(
+          month + "-",
+        )
+      ) {
+        alert(
+          "Select a date within the current month.",
+        );
         return;
       }
     }
-  }
 
-  record.title =
-    type === "needs"
-      ? categoryName(record, "needs")
-      : String(formData.get("title") || "").trim();
+    if (type === "expenses") {
+      const previous = id
+        ? data().expenses.find(
+            (item) => item.id === id,
+          )
+        : null;
 
-  if (!record.title) {
-    alert("Enter a description.");
-    return;
-  }
-
-  if (type !== "needs") {
-    record.date = String(formData.get("date") || "");
-
-    if (!record.date.startsWith(month + "-")) {
-      alert("Select a date within the current month.");
-      return;
+      record.type =
+        previous && isNeed(previous)
+          ? "need"
+          : "other";
     }
-  }
 
-  if (type === "expenses") {
-    // Preserve classification for older essential payments.
-    // Newly created expenses always use the spending budget.
-    const previous = id ? data().expenses.find((item) => item.id === id) : null;
+    const list = data()[type];
 
-    record.type = previous && isNeed(previous) ? "need" : "other";
-  }
+    const index = id
+      ? list.findIndex(
+          (item) => item.id === id,
+        )
+      : -1;
 
-  const list = data()[type];
+    if (index >= 0) {
+      list[index] = record;
+    } else {
+      list.push(record);
+    }
 
-  const index = id ? list.findIndex((item) => item.id === id) : -1;
+    // Save only after actual changes.
+    save();
 
-  if (index >= 0) {
-    list[index] = record;
-  } else {
-    list.push(record);
-  }
-
-  // Persist the added or updated entry.
-  save();
-
-  closeModal();
-  render();
-});
+    closeModal();
+    render();
+  },
+);
 
 $("#closeModal").onclick = closeModal;
 $("#cancelBtn").onclick = closeModal;
 
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closeModal();
-});
+document.addEventListener(
+  "keydown",
+  (event) => {
+    if (event.key === "Escape") {
+      closeModal();
+    }
+  },
+);
 
-$("#app").addEventListener("click", (event) => {
-  const button = event.target.closest("button");
-  if (!button) return;
+// ==========================================
+// APPLICATION EVENTS
+// ==========================================
 
-  // Copy planning from the previous month.
-  if (button.hasAttribute("data-copy-previous")) {
-    copyPreviousMonthPlanning();
-    return;
-  }
+$("#app").addEventListener(
+  "click",
+  (event) => {
+    const button = event.target.closest(
+      "button",
+    );
 
-  if (button.dataset.add) {
-    openModal(button.dataset.add);
-  }
+    if (!button) return;
 
-  if (button.dataset.edit) {
-    openModal(button.dataset.edit, button.dataset.id);
-  }
+    if (
+      button.hasAttribute(
+        "data-copy-previous",
+      )
+    ) {
+      copyPreviousMonthPlanning();
+      return;
+    }
 
-  if (button.dataset.delete) {
-    if (confirm("Delete this entry?")) {
-      const type = button.dataset.delete;
+    if (button.dataset.add) {
+      openModal(button.dataset.add);
+    }
 
-      data()[type] = data()[type].filter(
-        (item) => item.id !== button.dataset.id,
+    if (button.dataset.edit) {
+      openModal(
+        button.dataset.edit,
+        button.dataset.id,
       );
+    }
 
-      // Save the updated records to Supabase.
-      save();
+    if (button.dataset.delete) {
+      if (confirm("Delete this entry?")) {
+        const type = button.dataset.delete;
 
+        data()[type] = data()[type].filter(
+          (item) =>
+            item.id !== button.dataset.id,
+        );
+
+        save();
+        render();
+      }
+    }
+
+    if (button.dataset.month) {
+      month = button.dataset.month;
+      view = "dashboard";
       render();
     }
-  }
+  },
+);
 
-  if (button.dataset.month) {
-    month = button.dataset.month;
-    view = "dashboard";
-    render();
-  }
-});
+// Desktop navigation.
+document
+  .querySelectorAll("[data-view]")
+  .forEach((button) => {
+    button.onclick = () => {
+      view = button.dataset.view;
 
-document.querySelectorAll("[data-view]").forEach((button) => {
-  button.onclick = () => {
-    view = button.dataset.view;
-    $("#sidebar").classList.remove("open");
-    render();
-  };
-});
+      $("#sidebar").classList.remove(
+        "open",
+      );
 
-/* =========================================
-   IPHONE BOTTOM NAVIGATION
-   ========================================= */
-
-document.querySelectorAll("[data-mobile-view]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const selectedView = button.dataset.mobileView;
-
-    // Reuse the existing page rendering system.
-    view = selectedView;
-
-    // Close the desktop/mobile sidebar if open.
-    $("#sidebar").classList.remove("open");
-
-    // Display the selected page.
-    render();
-
-    // Start at the top of the selected page.
-    window.scrollTo({
-      top: 0,
-      behavior: "instant",
-    });
+      render();
+    };
   });
-});
+
+// iPhone bottom navigation.
+document
+  .querySelectorAll("[data-mobile-view]")
+  .forEach((button) => {
+    button.addEventListener(
+      "click",
+      () => {
+        const selectedView =
+          button.dataset.mobileView;
+
+        view = selectedView;
+
+        $("#sidebar").classList.remove(
+          "open",
+        );
+
+        render();
+
+        window.scrollTo({
+          top: 0,
+          behavior: "instant",
+        });
+      },
+    );
+  });
 
 $("#addBtn").onclick = () => {
   if (view === "spending") {
@@ -1737,17 +2299,29 @@ $("#addBtn").onclick = () => {
 $("#monthPicker").onchange = (event) => {
   const selected = event.target.value;
 
-  if (/^\d{4}-(0[1-9]|1[0-2])$/.test(selected)) {
+  if (
+    /^\d{4}-(0[1-9]|1[0-2])$/.test(
+      selected,
+    )
+  ) {
     month = selected;
     render();
   }
 };
 
 $("#menuBtn").onclick = () => {
-  $("#sidebar").classList.toggle("open");
+  $("#sidebar").classList.toggle(
+    "open",
+  );
 };
 
-if (localStorage.getItem(THEME) === "dark") {
+// ==========================================
+// DARK MODE
+// ==========================================
+
+if (
+  localStorage.getItem(THEME) === "dark"
+) {
   document.body.classList.add("dark");
 }
 
@@ -1756,59 +2330,79 @@ $("#themeBtn").onclick = () => {
 
   localStorage.setItem(
     THEME,
-    document.body.classList.contains("dark") ? "dark" : "light",
+    document.body.classList.contains(
+      "dark",
+    )
+      ? "dark"
+      : "light",
   );
 };
 
-/* ==========================================
-   PENVORIA - FINANCIAL DATA BACKUP
-   ========================================== */
+// ==========================================
+// FINANCIAL DATA BACKUP
+// ==========================================
 
 async function exportPenvoriaBackup() {
-  const cloud = window.penvoriaCloud;
-
-  // Only allow backup for a signed-in account.
-  if (!cloud?.user) {
-    alert("Please sign in before exporting a backup.");
+  if (!window.penvoriaCloud?.user) {
+    alert(
+      "Please sign in before exporting a backup.",
+    );
     return;
   }
 
   const months = state.months || {};
-  const monthCount = Object.keys(months).length;
 
-  if (monthCount === 0) {
-    alert("There are no monthly budgets to export.");
+  if (!Object.keys(months).length) {
+    alert(
+      "There are no monthly budgets to export.",
+    );
     return;
   }
 
-  // Export the current in-memory data, including
-  // changes that may still be waiting to sync.
-  const backup = {
-    application: "Penvoria",
-    format_version: 1,
-    exported_at: new Date().toISOString(),
-    month_count: monthCount,
-    months: months,
-  };
+  const json = JSON.stringify(
+    {
+      application: "Penvoria",
+      format_version: 1,
+      exported_at: new Date().toISOString(),
+      month_count: Object.keys(months).length,
+      months,
+    },
+    null,
+    2,
+  );
 
-  const json = JSON.stringify(backup, null, 2);
+  const blob = new Blob(
+    [json],
+    {
+      type: "application/json",
+    },
+  );
 
-  const blob = new Blob([json], { type: "application/json" });
+  const filename =
+    `penvoria-backup-${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
 
-  const date = new Date().toISOString().slice(0, 10);
-
-  const filename = `penvoria-backup-${date}.json`;
-
-  // On compatible iPhones, offer Save to Files
-  // through the system sharing menu.
+  // On supported iPhones,
+  // use the system Share menu.
   if (
     typeof File !== "undefined" &&
     typeof navigator.share === "function" &&
     typeof navigator.canShare === "function"
   ) {
-    const file = new File([blob], filename, { type: "application/json" });
+    const file = new File(
+      [blob],
+      filename,
+      {
+        type: "application/json",
+      },
+    );
 
-    if (navigator.canShare({ files: [file] })) {
+    if (
+      navigator.canShare({
+        files: [file],
+      })
+    ) {
       try {
         await navigator.share({
           files: [file],
@@ -1816,38 +2410,51 @@ async function exportPenvoriaBackup() {
         });
 
         return;
+
       } catch (error) {
-        // The user canceled the Share menu.
-        if (error.name === "AbortError") {
+        if (
+          error.name === "AbortError"
+        ) {
           return;
         }
 
-        console.warn("Sharing unavailable, trying download:", error);
+        console.warn(
+          "Share failed, falling back to download:",
+          error,
+        );
       }
     }
   }
 
-  // Standard browser download fallback.
-  const url = URL.createObjectURL(blob);
+  // Browser download fallback.
+  const url = URL.createObjectURL(
+    blob,
+  );
 
-  const link = document.createElement("a");
+  const link = document.createElement(
+    "a",
+  );
 
   link.href = url;
   link.download = filename;
 
   document.body.appendChild(link);
+
   link.click();
   link.remove();
 
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 1000);
+  setTimeout(
+    () => URL.revokeObjectURL(url),
+    1000,
+  );
 }
 
-// Connect the export button.
 document
   .getElementById("exportBackupBtn")
-  ?.addEventListener("click", exportPenvoriaBackup);
+  ?.addEventListener(
+    "click",
+    exportPenvoriaBackup,
+  );
 
-// The cloud integration will call render()
-// after authentication and data loading.
+// cloud.js calls render() after
+// authentication and account loading.
