@@ -600,6 +600,132 @@ function overview(record, values) {
   `;
 }
 
+/* ==========================================
+   PENVORIA - COPY PREVIOUS MONTH
+   ========================================== */
+
+// Get the month immediately before the selected month.
+// Handles January -> December automatically.
+function previousMonthKey(targetMonth) {
+  const [year, monthNumber] = targetMonth.split("-").map(Number);
+
+  const previous = new Date(Date.UTC(year, monthNumber - 2, 1));
+
+  return previous.toISOString().slice(0, 7);
+}
+
+// Move a dated entry into the destination month.
+// Example: January 31 -> February 28 or 29.
+function moveEntryDateToMonth(originalDate, targetMonth) {
+  const dayMatch = /^\d{4}-\d{2}-(\d{2})$/.exec(String(originalDate || ""));
+
+  const requestedDay = dayMatch ? Number(dayMatch[1]) : 1;
+
+  const year = Number(targetMonth.slice(0, 4));
+  const monthNumber = Number(targetMonth.slice(5, 7));
+
+  const lastDay = new Date(year, monthNumber, 0).getDate();
+
+  const day = Math.min(Math.max(requestedDay, 1), lastDay);
+
+  return `${targetMonth}-${String(day).padStart(2, "0")}`;
+}
+
+function copyPreviousMonthPlanning() {
+  if (!window.penvoriaCloud?.ready) {
+    alert("Wait for your cloud data to finish loading.");
+    return;
+  }
+
+  const targetMonth = month;
+  const sourceMonth = previousMonthKey(targetMonth);
+
+  const source = state.months[sourceMonth];
+
+  const types = ["income", "needs", "savings"];
+
+  // Check whether the previous month contains a plan.
+  const hasSourcePlanning =
+    source &&
+    types.some(
+      (type) => Array.isArray(source[type]) && source[type].length > 0,
+    );
+
+  if (!hasSourcePlanning) {
+    alert(
+      `There is no planning data to copy from ` + `${monthLabel(sourceMonth)}.`,
+    );
+    return;
+  }
+
+  // Get the currently selected destination month.
+  const target = data(targetMonth);
+
+  // Never overwrite a month that already has a plan.
+  const hasExistingPlanning = types.some((type) => target[type].length > 0);
+
+  if (hasExistingPlanning) {
+    alert(
+      `${monthLabel(targetMonth)} already has ` +
+        `income, needs, or savings entries.\n\n` +
+        `To prevent duplicates or overwriting data, ` +
+        `copying is only available for months ` +
+        `without an existing plan.`,
+    );
+    return;
+  }
+
+  const incomeCount = source.income?.length || 0;
+  const needsCount = source.needs?.length || 0;
+  const savingsCount = source.savings?.length || 0;
+
+  const confirmed = confirm(
+    `Copy planning from ${monthLabel(sourceMonth)} ` +
+      `to ${monthLabel(targetMonth)}?\n\n` +
+      `Income: ${incomeCount} entries\n` +
+      `Needs: ${needsCount} allocations\n` +
+      `Savings: ${savingsCount} entries\n\n` +
+      `Expenses will not be copied.\n` +
+      `Existing expenses in ${monthLabel(targetMonth)} ` +
+      `will be preserved.`,
+  );
+
+  if (!confirmed) return;
+
+  // Copy only planning records.
+  for (const type of types) {
+    const entries = Array.isArray(source[type]) ? source[type] : [];
+
+    target[type] = entries.map((item) => {
+      const copy = {
+        ...item,
+        id: makeId(),
+      };
+
+      // Needs allocations have no transaction date.
+      if (type !== "needs") {
+        copy.date = moveEntryDateToMonth(item.date, targetMonth);
+      }
+
+      return copy;
+    });
+  }
+
+  // Do not copy or modify target.expenses.
+
+  // Save to Supabase using the reliable queue.
+  save();
+
+  // Refresh the current Planning screen.
+  render();
+
+  alert(
+    `Planning copied to ${monthLabel(targetMonth)}.\n\n` +
+      `Review income and savings amounts before using ` +
+      `this month's budget.`,
+  );
+}
+
 function planning(record, values) {
   const { income, needBudget, savings, spendingBudget } = values;
 
@@ -621,6 +747,31 @@ function planning(record, values) {
         spendingBudget < 0 ? "negative" : "positive",
       )}
     </div>
+
+    
+    <!-- Copy previous month's planning -->
+    <section class="panel copy-month-panel">
+      <div class="panel-head">
+        <div>
+          <h2>Start with last month's plan</h2>
+
+          <p class="panel-sub">
+            Copy income sources, needs allocations,
+            and savings from
+            ${monthLabel(previousMonthKey(month))}.
+            Expenses are never copied.
+          </p>
+        </div>
+
+        <button
+          class="secondary"
+          type="button"
+          data-copy-previous
+        >
+          Copy previous month
+        </button>
+      </div>
+    </section>
 
     <!-- Income -->
     <section class="panel">
@@ -1507,6 +1658,12 @@ document.addEventListener("keydown", (event) => {
 $("#app").addEventListener("click", (event) => {
   const button = event.target.closest("button");
   if (!button) return;
+
+  // Copy planning from the previous month.
+  if (button.hasAttribute("data-copy-previous")) {
+    copyPreviousMonthPlanning();
+    return;
+  }
 
   if (button.dataset.add) {
     openModal(button.dataset.add);
