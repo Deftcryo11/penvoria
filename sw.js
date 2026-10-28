@@ -1,7 +1,7 @@
 "use strict";
 
 // Change this value for each future PWA release.
-const CACHE_NAME = "penvoria-shell-v1.1-02";
+const CACHE_NAME = "penvoria-shell-v1.1-03";
 const CACHE_PREFIX = "penvoria-shell-";
 
 const OFFLINE_URL = new URL("./offline.html", self.registration.scope).href;
@@ -28,6 +28,7 @@ const STATIC_FILES = new Set([
   "icon-512.png",
   "apple-touch-icon.png",
   "modal-scroll-lock.js",
+  "history-month-delete.js",
 ]);
 
 self.addEventListener("install", (event) => {
