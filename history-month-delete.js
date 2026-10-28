@@ -39,30 +39,34 @@
         are kept.
       </p>
 
-      <p>
-        <strong>Save a backup before continuing.</strong>
-        The JSON file contains readable financial
-        information. Keep it somewhere private.
-      </p>
+      
+    <p>
+        You can optionally download a backup
+        before deleting this month.
+        A backup is not required.
+        </p>
+
 
       <button
         type="button"
         class="secondary"
         id="md-backup"
       >
-        Save month backup (JSON)
+        Download backup (optional)
       </button>
 
-      <label class="md-confirm">
+      
+        <label class="md-confirm">
         <input
-          type="checkbox"
-          id="md-confirm"
-          disabled
+            type="checkbox"
+            id="md-confirm"
         >
 
-        I saved and checked the backup,
-        and understand the month will be deleted.
-      </label>
+        I understand that deleting this month
+        permanently removes its financial records
+        and that a backup is optional.
+        </label>
+
 
       <p
         id="md-status"
@@ -199,7 +203,7 @@
   }
 
   function refreshButtons() {
-    deleteButton.disabled = busy || !backupStarted || !checkbox.checked;
+    deleteButton.disabled = busy || !checkbox.checked;
 
     backupButton.disabled = busy;
     cancelButton.disabled = busy;
@@ -213,11 +217,10 @@
       selectedUser = cloud.user.id;
       localSnapshot = JSON.stringify(state.months[key]);
 
-      backupStarted = false;
       busy = false;
 
       checkbox.checked = false;
-      checkbox.disabled = true;
+      checkbox.disabled = false;
 
       status.textContent = "";
 
@@ -308,7 +311,7 @@
      ====================================== */
 
   async function permanentlyDelete() {
-    if (busy || !checkbox.checked || !backupStarted || !selectedKey) {
+    if (busy || !checkbox.checked || !selectedKey) {
       return;
     }
 
