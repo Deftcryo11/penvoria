@@ -14,6 +14,7 @@ const cloud = {
   pending: Promise.resolve(),
   syncing: false,
   failed: false,
+  recoveryError: false,
   versions: {},
   drafts: {},
   conflicts: new Set(),
@@ -25,6 +26,7 @@ window.penvoriaCloud = cloud;
 
 let authMode = "login";
 let loadingAccount = false;
+let authEpoch = 0;
 
 const authScreen = document.querySelector("#authScreen");
 const startupScreen = document.querySelector("#startupScreen");
@@ -66,6 +68,7 @@ function clearCloudMemory() {
   cloud.ready = false;
   cloud.user = null;
   cloud.failed = false;
+  cloud.recoveryError = false;
 
   cloud.versions = {};
   cloud.drafts = {};
@@ -74,6 +77,7 @@ function clearCloudMemory() {
 }
 
 function showLogin() {
+  authEpoch += 1;
   clearCloudMemory();
 
   // Do not expose another account's budgets.
@@ -137,6 +141,9 @@ function draftStorageKey(userId) {
 function storeDrafts() {
   if (!cloud.user) return false;
 
+  // Do not overwrite an unreadable recovery record.
+  if (cloud.recoveryError) return false;
+
   try {
     const key = draftStorageKey(cloud.user.id);
 
@@ -158,6 +165,7 @@ function storeDrafts() {
 }
 
 function restoreDrafts(userId, serverMonths) {
+  cloud.recoveryError = false;
   cloud.drafts = {};
   cloud.conflicts.clear();
 
@@ -194,7 +202,8 @@ function restoreDrafts(userId, serverMonths) {
   } catch (error) {
     console.error("Could not restore pending changes:", error);
 
-    setCloudStatus("Could not read local pending changes", true);
+    cloud.recoveryError = true;
+    setCloudStatus("Local recovery error ? do not clear browser data", true);
   }
 }
 
@@ -204,6 +213,14 @@ function restoreDrafts(userId, serverMonths) {
 
 function updateSyncStatus() {
   const count = Object.keys(cloud.drafts).length;
+
+  if (cloud.recoveryError) {
+    setCloudStatus(
+      "Local recovery error ? do not clear browser data",
+      true
+    );
+    return;
+  }
 
   if (cloud.conflicts.size) {
     setCloudStatus(
@@ -308,6 +325,11 @@ function scheduleRetry() {
    ========================================== */
 
 function flushCloudQueue() {
+  if (cloud.recoveryError) {
+    updateSyncStatus();
+    return cloud.pending;
+  }
+
   if (!cloud.ready || !cloud.user || cloud.syncing) {
     return cloud.pending;
   }
@@ -383,6 +405,17 @@ function flushCloudQueue() {
     } finally {
       cloud.syncing = false;
       updateSyncStatus();
+
+      if (
+        cloud.ready &&
+        cloud.user?.id !== userId &&
+        navigator.onLine &&
+        Object.keys(cloud.drafts).some(
+          (key) => !cloud.conflicts.has(key)
+        )
+      ) {
+        void flushCloudQueue();
+      }
     }
   })();
 
@@ -432,6 +465,7 @@ cloud.queueSave = function (monthKey, record) {
 async function loadAccount() {
   if (loadingAccount) return;
 
+  const thisLoadEpoch = authEpoch;
   loadingAccount = true;
   cloud.ready = false;
 
@@ -442,6 +476,7 @@ async function loadAccount() {
       await cloud.client.auth.getUser();
 
     if (userError) throw userError;
+    if (thisLoadEpoch !== authEpoch) return;
 
     if (!userData.user) {
       showLogin();
@@ -459,6 +494,7 @@ async function loadAccount() {
       .order("month", { ascending: true });
 
     if (error) throw error;
+    if (thisLoadEpoch !== authEpoch) return;
 
     const months = {};
 
@@ -698,6 +734,34 @@ async function initializeCloud() {
     if (!cloud.client?.auth) {
       throw new Error("Supabase authentication failed.");
     }
+
+    cloud.client.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        const hadDrafts =
+          Object.keys(cloud.drafts).length > 0;
+
+        showLogin();
+
+        if (hadDrafts) {
+          setAuthMessage(
+            "Signed out. Sign back in to recover pending changes saved on this device.",
+            true
+          );
+        }
+      } else if (
+        event === "SIGNED_IN" &&
+        cloud.user?.id &&
+        session?.user?.id &&
+        cloud.user.id !== session.user.id
+      ) {
+        showLogin();
+
+        setAuthMessage(
+          "Account changed in another tab. Refresh to load its budgets.",
+          true
+        );
+      }
+    });
 
     const { data, error } = await cloud.client.auth.getSession();
 
