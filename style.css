@@ -1910,3 +1910,46 @@ body.dark .allocation-inline-alert.approaching {
     padding-bottom: 20px;
   }
 }
+
+/* ==========================================
+   PENVORIA - iPHONE MODAL SCROLL LOCK
+   ========================================== */
+
+@media (max-width: 700px) and (display-mode: standalone) {
+  /* Lock background while entry form is open */
+  body.authenticated.modal-open .main {
+    overflow-x: hidden !important;
+    overflow-y: hidden !important;
+
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
+
+    touch-action: none;
+  }
+
+  /* Keep the app shell from scrolling */
+  body.authenticated.modal-open .shell {
+    overflow: hidden;
+  }
+
+  /* Hide bottom navigation while editing */
+  body.authenticated.modal-open .mobile-bottom-nav {
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  /* Stop scroll gestures escaping the overlay */
+  body.authenticated.modal-open #overlay {
+    overscroll-behavior: none;
+  }
+
+  /* Form remains independently scrollable */
+  body.authenticated.modal-open #overlay .modal {
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+}
