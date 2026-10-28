@@ -1771,7 +1771,6 @@ body.authenticated .auth-screen {
     font-size: 14px;
     font-weight: 700;
   }
-
 }
 
 /* =========================================
@@ -1779,17 +1778,17 @@ body.authenticated .auth-screen {
    ========================================= */
 
 @media (max-width: 700px) {
-    /* Hide navigation only while the modal is visible */
-    body:has(#overlay:not(.hidden)) .mobile-bottom-nav {
-      visibility: hidden;
-    }
+  /* Hide navigation only while the modal is visible */
+  body:has(#overlay:not(.hidden)) .mobile-bottom-nav {
+    visibility: hidden;
+  }
 
-    /* Restore navigation immediately after closing */
-    body:has(#overlay.hidden) .mobile-bottom-nav {
-      visibility: visible;
-      opacity: 1;
-      pointer-events: auto;
-    }
+  /* Restore navigation immediately after closing */
+  body:has(#overlay.hidden) .mobile-bottom-nav {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 /* ==========================================
@@ -1806,4 +1805,38 @@ body.authenticated .auth-screen {
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+/* ==========================================
+   CATEGORY ALLOCATION WARNINGS
+   ========================================== */
+
+.allocation-status.approaching {
+  background: rgba(217, 154, 50, 0.14);
+  color: #b77b1f;
+}
+
+.allocation-inline-alert {
+  margin: 13px 0 0;
+  padding: 10px 12px;
+
+  border-radius: 9px;
+
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.allocation-inline-alert.approaching {
+  background: rgba(217, 154, 50, 0.12);
+  color: #b77b1f;
+}
+
+.allocation-inline-alert.critical {
+  background: rgba(212, 98, 98, 0.12);
+  color: var(--danger);
+}
+
+body.dark .allocation-status.approaching,
+body.dark .allocation-inline-alert.approaching {
+  color: #f0bb64;
 }
