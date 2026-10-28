@@ -28,6 +28,107 @@ let authMode = "login";
 let loadingAccount = false;
 let authEpoch = 0;
 
+/* ==========================================
+   ONE ACTIVE EDITING TAB PER ACCOUNT
+   ========================================== */
+
+let editLockUser = null;
+let editLockRelease = null;
+
+function releaseAccountEditLock() {
+  const release = editLockRelease;
+
+  editLockRelease = null;
+  editLockUser = null;
+
+  if (release) release();
+}
+
+async function acquireAccountEditLock(userId) {
+  if (
+    editLockUser === userId &&
+    editLockRelease
+  ) {
+    return true;
+  }
+
+  if (!navigator.locks?.request) {
+    throw new Error(
+      "Single-tab protection requires HTTPS " +
+      "or localhost and Web Locks support."
+    );
+  }
+
+  let resolveAcquired;
+  let reported = false;
+
+  const acquired = new Promise((resolve) => {
+    resolveAcquired = (success) => {
+      if (!reported) {
+        reported = true;
+        resolve(success);
+      }
+    };
+  });
+
+  // Hold the lock until logout or tab closure.
+  // Do not await its entire lifetime.
+  const lifetime = navigator.locks.request(
+    "penvoria-editor:" + userId,
+    { ifAvailable: true },
+
+    async (lock) => {
+      if (!lock) {
+        resolveAcquired(false);
+        return;
+      }
+
+      await new Promise((release) => {
+        editLockUser = userId;
+        editLockRelease = release;
+        resolveAcquired(true);
+      });
+    }
+  );
+
+  void lifetime.catch((error) => {
+    console.error(
+      "Penvoria editing lock failed:",
+      error
+    );
+
+    resolveAcquired(false);
+
+    if (editLockUser === userId) {
+      // Fail closed if the lock is lost.
+      editLockUser = null;
+      editLockRelease = null;
+      cloud.ready = false;
+
+      document.body.classList.remove(
+        "authenticated"
+      );
+
+      document.body.classList.add(
+        "auth-locked"
+      );
+
+      authScreen.hidden = false;
+      authForm.hidden = true;
+      hideStartupScreen();
+
+      setAuthMessage(
+        "Editing lock lost. Preserve this tab " +
+        "and export a backup before restarting.",
+        true
+      );
+    }
+  });
+
+  return acquired;
+}
+
+
 const authScreen = document.querySelector("#authScreen");
 const startupScreen = document.querySelector("#startupScreen");
 const authForm = document.querySelector("#authForm");
@@ -78,6 +179,7 @@ function clearCloudMemory() {
 
 function showLogin() {
   authEpoch += 1;
+  releaseAccountEditLock();
   clearCloudMemory();
 
   // Do not expose another account's budgets.
@@ -88,6 +190,7 @@ function showLogin() {
   document.body.classList.add("auth-locked");
 
   authScreen.hidden = false;
+  authForm.hidden = false;
 
   setAuthMessage("");
   hideStartupScreen();
@@ -485,6 +588,56 @@ async function loadAccount() {
 
     const account = userData.user;
 
+    // Protect shared pending financial records.
+    const hasEditLock =
+      await acquireAccountEditLock(account.id);
+
+    if (thisLoadEpoch !== authEpoch) {
+      if (hasEditLock) releaseAccountEditLock();
+      return;
+    }
+
+    if (!hasEditLock) {
+      cloud.ready = false;
+      cloud.user = null;
+      state = { months: {} };
+
+      document.body.classList.remove(
+        "authenticated",
+        "auth-pending"
+      );
+
+      document.body.classList.add(
+        "auth-locked"
+      );
+
+      authScreen.hidden = false;
+      authForm.hidden = true;
+
+      document.querySelector(
+        "#authHeading"
+      ).textContent =
+        "Penvoria is open in another tab";
+
+      document.querySelector(
+        "#authSubtitle"
+      ).textContent =
+        "Close the other Penvoria tab or window, then reload this one.";
+
+      setAuthMessage(
+        "Only one tab can edit this account at a time.",
+        true
+      );
+
+      setCloudStatus(
+        "Another tab is editing ? this tab is locked",
+        true
+      );
+
+      hideStartupScreen();
+      return;
+    }
+
     cloud.user = account;
 
     const { data: rows, error } = await cloud.client
@@ -531,6 +684,7 @@ async function loadAccount() {
     // Retry any recovered unsynced months.
     void flushCloudQueue();
   } catch (error) {
+    releaseAccountEditLock();
     console.error("Cloud loading failed:", error);
 
     cloud.ready = false;
