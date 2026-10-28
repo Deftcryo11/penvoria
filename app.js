@@ -824,6 +824,9 @@ function copyPreviousMonthPlanning() {
         id: makeId(),
       };
 
+      // Copied plans are not confirmed recurring entries.
+      delete copy.recurringTemplateId;
+
       // New month: reset actual activity.
       if (type === "income") {
         copy.received = 0;
@@ -1910,6 +1913,10 @@ $("#entryForm").addEventListener("submit", (event) => {
   const index = id ? list.findIndex((item) => item.id === id) : -1;
 
   if (index >= 0) {
+    // Retain recurrence marker when editing the monthly entry.
+    if (list[index].recurringTemplateId) {
+      record.recurringTemplateId = list[index].recurringTemplateId;
+    }
     list[index] = record;
   } else {
     list.push(record);

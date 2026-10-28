@@ -1,0 +1,69 @@
+/* Penvoria v1.1 — recurring transaction review */
+.pr-shortcut {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.pr-shortcut h2 { margin-bottom: 4px; }
+.pr-panel .panel-head { flex-wrap: wrap; gap: 12px; }
+.pr-list { display: grid; gap: 12px; margin: 18px 0; }
+.pr-item {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.pr-item-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.pr-item-top strong { display: block; margin-bottom: 4px; }
+.pr-item-top p { color: var(--muted); margin: 0 0 4px; }
+.pr-item-top small { color: var(--text); }
+.pr-status {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.pr-status.pr-ready { background: var(--accent2); color: var(--accent); }
+.pr-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+.pr-actions button { min-height: 38px; }
+.pr-editor {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  padding: 18px;
+  margin-top: 16px;
+}
+.pr-editor h3 { margin-bottom: 12px; }
+.pr-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pr-fields label { display: grid; gap: 5px; color: var(--text); font-weight: 600; }
+.pr-fields input, .pr-fields select {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 10px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 16px;
+}
+.pr-note { color: var(--muted); font-size: 13px; margin: 12px 0; }
+.pr-error {
+  margin: 12px 0;
+  padding: 11px 12px;
+  border: 1px solid var(--danger);
+  border-radius: 9px;
+  color: var(--danger);
+}
+@media (max-width: 700px) {
+  .pr-fields { grid-template-columns: minmax(0, 1fr); }
+  .pr-item-top { flex-direction: column; }
+  .pr-status { align-self: flex-start; }
+  .pr-actions { width: 100%; }
+  .pr-actions button { flex: 1 1 auto; }
+}
