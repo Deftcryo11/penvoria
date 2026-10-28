@@ -1605,6 +1605,8 @@ function categoryField(record, type) {
   `;
 }
 
+let scrollBeforeEntryModal = null;
+
 // ==========================================
 // ADD / EDIT MODAL
 // ==========================================
@@ -1713,6 +1715,16 @@ function openModal(type, id = null) {
       input.inputMode = "decimal";
     });
 
+  const standaloneMobile = window.matchMedia(
+    "(max-width: 700px) and (display-mode: standalone)",
+  ).matches;
+
+  // Remember where the user was before opening the form.
+  if (standaloneMobile) {
+    const main = document.querySelector(".main");
+    scrollBeforeEntryModal = main?.scrollTop ?? 0;
+  }
+
   $("#overlay").classList.remove("hidden");
 
   document.body.classList.add("modal-open");
@@ -1743,17 +1755,38 @@ function updateSpendingType() {
 function closeModal() {
   const overlay = $("#overlay");
 
+  if (overlay.classList.contains("hidden")) {
+    return;
+  }
+
+  const previousScroll = scrollBeforeEntryModal;
+  scrollBeforeEntryModal = null;
+
+  // Dismiss the iPhone keyboard first.
   if (document.activeElement && overlay.contains(document.activeElement)) {
     document.activeElement.blur();
   }
 
+  // Hide the form.
   overlay.classList.add("hidden");
 
+  // Unlock background scrolling.
   document.body.classList.remove("modal-open");
 
   updateMobileModalViewport();
 
   editing = null;
+
+  // Restore the original page position.
+  if (previousScroll !== null) {
+    requestAnimationFrame(() => {
+      const main = document.querySelector(".main");
+
+      if (main) {
+        main.scrollTop = previousScroll;
+      }
+    });
+  }
 }
 
 // ==========================================
