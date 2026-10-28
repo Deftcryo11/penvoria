@@ -1942,6 +1942,236 @@ body.authenticated .auth-screen {
   color: var(--muted);
 }
 
+/* ==========================================
+   PENVORIA - MONTHLY FINANCIAL ANALYTICS
+   Improvement 5
+   ========================================== */
+
+/* Analytics summary cards */
+
+.pa-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.pa-insight {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  min-width: 0;
+  padding: 16px;
+
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  background: var(--bg);
+}
+
+.pa-insight span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pa-insight strong {
+  font-size: 20px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.pa-note {
+  margin: 13px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.pa-empty {
+  padding: 20px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 13px;
+}
+
+/* Chart legend */
+
+.pa-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+
+  margin: 16px 0;
+}
+
+.pa-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pa-key {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+}
+
+.pa-key-income,
+.pa-bar-income {
+  background: #148b7e;
+}
+
+.pa-key-expenses,
+.pa-bar-expenses {
+  background: #d46262;
+}
+
+.pa-key-savings,
+.pa-bar-savings {
+  background: #667cdb;
+}
+
+/* Monthly bar chart */
+
+.pa-chart-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pa-chart {
+  display: grid;
+
+  grid-template-columns: repeat(var(--pa-month-count, 6), minmax(0, 1fr));
+
+  gap: 12px;
+  padding: 5px 2px 10px;
+}
+
+.pa-month-column {
+  width: 100%;
+  min-width: 0;
+  max-width: 90px;
+
+  margin: 0 auto;
+}
+
+.pa-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+
+  width: 100%;
+  height: 170px;
+
+  padding: 0 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pa-bar {
+  flex: 1;
+  min-width: 0;
+
+  border-radius: 5px 5px 0 0;
+  transition: height 0.2s ease;
+}
+
+.pa-month-name {
+  display: block;
+  margin-top: 9px;
+
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Category spending breakdown */
+
+.pa-category-list {
+  display: grid;
+  gap: 17px;
+}
+
+.pa-category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+
+  margin-bottom: 8px;
+}
+
+.pa-category-header span {
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.pa-category-header strong {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pa-category-track {
+  height: 9px;
+  width: 100%;
+
+  border-radius: 99px;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.pa-category-track > div {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent);
+}
+
+/* iPhone layout */
+
+@media (max-width: 700px) {
+  .pa-insights-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .pa-insight {
+    padding: 12px;
+  }
+
+  .pa-insight strong {
+    font-size: 16px;
+  }
+
+  .pa-insight:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .pa-chart-scroll {
+    overscroll-behavior-x: contain;
+  }
+
+  .pa-bars {
+    height: 145px;
+  }
+
+  .pa-category-header strong {
+    font-size: 11px;
+  }
+}
+
 @media (max-width: 700px) {
   .penvoria-budget-alert {
     padding: 13px;

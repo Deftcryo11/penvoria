@@ -2271,5 +2271,212 @@ document
   };
 })();
 
+/* ==========================================
+   PENVORIA - MONTHLY FINANCIAL ANALYTICS
+   Improvement 5 (append to app.js)
+   ========================================== */
+
+(function installPenvoriaAnalytics() {
+  if (window.__penvoriaAnalyticsInstalled) return;
+  window.__penvoriaAnalyticsInstalled = true;
+
+  // Keep the existing monthly history and Open buttons.
+  const previousHistory = history;
+
+  function monthlyAnalyticsRecords() {
+    const types = ["income", "needs", "expenses", "savings"];
+
+    return Object.entries(state.months || {})
+      .filter(
+        ([key, record]) =>
+          /^\d{4}-(0[1-9]|1[0-2])$/.test(key) &&
+          record &&
+          types.some(
+            (type) => Array.isArray(record[type]) && record[type].length > 0,
+          ),
+      )
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, record]) => ({
+        key,
+        values: totals(
+          Object.fromEntries(
+            types.map((type) => [
+              type,
+              Array.isArray(record[type]) ? record[type] : [],
+            ]),
+          ),
+        ),
+      }));
+  }
+
+  function shortMonth(key) {
+    return new Date(`${key}-01T12:00:00`).toLocaleDateString("en-US", {
+      month: "short",
+      year: "2-digit",
+    });
+  }
+
+  function trendChart(rows) {
+    if (!rows.length) {
+      return `<p class="pa-empty">Add financial entries to see your monthly trends.</p>`;
+    }
+
+    const scale = Math.max(
+      1,
+      ...rows
+        .flatMap(({ values }) => [
+          values.incomeReceived,
+          values.expenses,
+          values.savingsTransferred,
+        ])
+        .filter(Number.isFinite),
+    );
+
+    const series = [
+      ["incomeReceived", "income", "Income received"],
+      ["expenses", "expenses", "Expenses"],
+      ["savingsTransferred", "savings", "Savings transferred"],
+    ];
+
+    const columns = rows
+      .map(({ key, values }) => {
+        const bars = series
+          .map(([field, style, label]) => {
+            const value = Math.max(0, Number(values[field]) || 0);
+            const height = Math.min(100, (value / scale) * 100);
+            const description = `${shortMonth(key)}: ${label}, ${money(value)}`;
+
+            return `
+          <div class="pa-bar pa-bar-${style}"
+               style="height:${height.toFixed(3)}%"
+               role="img"
+               aria-label="${escapeHtml(description)}"
+               title="${escapeHtml(description)}"></div>
+        `;
+          })
+          .join("");
+
+        return `
+        <div class="pa-month-column">
+          <div class="pa-bars">${bars}</div>
+          <span class="pa-month-name">${escapeHtml(shortMonth(key))}</span>
+        </div>
+      `;
+      })
+      .join("");
+
+    return `
+      <div class="pa-legend" aria-label="Chart legend">
+        <span><i class="pa-key pa-key-income"></i> Income received</span>
+        <span><i class="pa-key pa-key-expenses"></i> Expenses</span>
+        <span><i class="pa-key pa-key-savings"></i> Savings transferred</span>
+      </div>
+      <div class="pa-chart-scroll" role="region"
+           aria-label="Financial trends by month" tabindex="0">
+        <div class="pa-chart" style="--pa-month-count:${rows.length}; min-width:${Math.max(300, rows.length * 72)}px">
+          ${columns}
+        </div>
+      </div>
+      <p class="pa-note">Last ${rows.length} month${rows.length === 1 ? "" : "s"} with recorded activity. Bars use a common MVR scale, up to ${money(scale)}.</p>
+    `;
+  }
+
+  function categoryBreakdown(record) {
+    const spending = new Map();
+
+    for (const expense of record.expenses || []) {
+      const amount = Number(expense.amount);
+      if (!Number.isFinite(amount) || amount <= 0) continue;
+
+      const category = categoryName(expense, "expenses");
+      spending.set(category, (spending.get(category) || 0) + amount);
+    }
+
+    const ranked = [...spending.entries()].sort((a, b) => b[1] - a[1]);
+
+    if (!ranked.length) {
+      return `<p class="pa-empty">No expenses recorded for ${escapeHtml(monthLabel(month))}.</p>`;
+    }
+
+    const grandTotal = ranked.reduce((sum, [, value]) => sum + value, 0);
+    const firstFive = ranked.slice(0, 5);
+    const remaining = ranked
+      .slice(5)
+      .reduce((sum, [, value]) => sum + value, 0);
+    const display =
+      remaining > 0
+        ? [...firstFive, ["Other categories combined", remaining]]
+        : firstFive;
+
+    return `
+      <div class="pa-category-list">
+        ${display
+          .map(([category, amount]) => {
+            const percent =
+              grandTotal > 0
+                ? Math.min(100, Math.max(0, (amount / grandTotal) * 100))
+                : 0;
+
+            return `
+            <div class="pa-category-row">
+              <div class="pa-category-header">
+                <span>${escapeHtml(category)}</span>
+                <strong>${money(amount)} · ${percent.toFixed(1)}%</strong>
+              </div>
+              <div class="pa-category-track" role="img"
+                   aria-label="${escapeHtml(category)}: ${percent.toFixed(1)}% of monthly expenses">
+                <div style="width:${percent.toFixed(2)}%"></div>
+              </div>
+            </div>
+          `;
+          })
+          .join("")}
+      </div>
+    `;
+  }
+
+  // Extend Monthly History without replacing its existing rows.
+  history = function () {
+    const currentRecord = data(month);
+    const current = totals(currentRecord);
+    const recent = monthlyAnalyticsRecords().slice(-6);
+    const savingsRate =
+      current.incomeReceived > 0
+        ? (current.savingsTransferred / current.incomeReceived) * 100
+        : null;
+
+    const insights = `
+      <section class="panel pa-insights-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Financial analytics</h2>
+            <p class="panel-sub">Actual money received, spent, and transferred for ${escapeHtml(monthLabel(month))}.</p>
+          </div>
+        </div>
+        <div class="pa-insights-grid">
+          <div class="pa-insight"><span>Income received</span><strong>${money(current.incomeReceived)}</strong></div>
+          <div class="pa-insight"><span>Total expenses</span><strong>${money(current.expenses)}</strong></div>
+          <div class="pa-insight"><span>Savings transferred</span><strong>${money(current.savingsTransferred)}</strong></div>
+          <div class="pa-insight"><span>Monthly cash remainder</span><strong class="${current.cashRemainder < 0 ? "negative" : "positive"}">${money(current.cashRemainder)}</strong></div>
+          <div class="pa-insight"><span>Actual savings rate</span><strong>${savingsRate === null ? "—" : `${savingsRate.toFixed(1)}%`}</strong></div>
+        </div>
+        <p class="pa-note">Cash remainder excludes balances carried in from other months. Savings rate is transferred savings divided by received income.</p>
+      </section>
+      <section class="panel pa-insights-panel">
+        <h2>Monthly trends</h2>
+        <p class="panel-sub">Compare up to six months of actual income, expenses, and savings transfers.</p>
+        ${trendChart(recent)}
+      </section>
+      <section class="panel pa-insights-panel">
+        <h2>Spending by category</h2>
+        <p class="panel-sub">Expense breakdown for ${escapeHtml(monthLabel(month))}. Change the month at the top of the page to view another.</p>
+        ${categoryBreakdown(currentRecord)}
+      </section>
+    `;
+
+    return insights + previousHistory();
+  };
+})();
+
 // cloud.js calls render() after
 // authentication and account loading.
