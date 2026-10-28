@@ -1097,70 +1097,108 @@ function spending(record, values) {
       const percentage =
         planned > 0 ? Math.min(100, (spent / planned) * 100) : 0;
 
+      // Budget warning thresholds.
       const isOver = categoryRemaining < 0;
 
+      const isLimit = planned > 0 && spent >= planned && !isOver;
+
+      const isNear =
+        planned > 0 && spent >= planned * 0.8 && !isLimit && !isOver;
+
+      const budgetStatus = isOver
+        ? "Over budget"
+        : isLimit
+          ? "Limit reached"
+          : isNear
+            ? "Approaching limit"
+            : "Allocated";
+
+      const budgetClass =
+        isOver || isLimit ? "over" : isNear ? "approaching" : "";
+
       return `
-        <div class="allocation-card">
-          <div class="allocation-top">
-            <div>
-              <h3>${escapeHtml(category)}</h3>
+      <div class="allocation-card">
 
-              <p class="muted">
-                Monthly allocation
-              </p>
-            </div>
-
-            <span class="allocation-status ${isOver ? "over" : ""}">
-              ${isOver ? "Over budget" : "Allocated"}
-            </span>
+        <div class="allocation-top">
+          <div>
+            <h3>${escapeHtml(category)}</h3>
+            <p class="muted">
+              Monthly allocation
+            </p>
           </div>
 
-          <div class="allocation-amounts">
-            <div>
-              <span>Allocated</span>
-              <strong>${money(planned)}</strong>
-            </div>
+          <span class="allocation-status ${budgetClass}">
+            ${budgetStatus}
+          </span>
+        </div>
 
-            <div>
-              <span>Spent</span>
-              <strong>${money(spent)}</strong>
-            </div>
-
-            <div>
-              <span>
-                ${isOver ? "Over by" : "Remaining"}
-              </span>
-
-              <strong class="${isOver ? "negative" : "positive"}">
-                ${money(
-                  isOver ? Math.abs(categoryRemaining) : categoryRemaining,
-                )}
-              </strong>
-            </div>
+        <div class="allocation-amounts">
+          <div>
+            <span>Allocated</span>
+            <strong>${money(planned)}</strong>
           </div>
 
-          <div class="progress">
-            <div
-              class="fill ${isOver ? "over-fill" : ""}"
-              style="width:${percentage}%"
-            ></div>
+          <div>
+            <span>Spent</span>
+            <strong>${money(spent)}</strong>
           </div>
 
-          <div class="allocation-bottom">
+          <div>
             <span>
-              ${percentage.toFixed(1)}% used
+              ${isOver ? "Over by" : "Remaining"}
             </span>
 
-            <span>
-              ${
-                isOver
-                  ? "Excess charged to general budget"
-                  : "Available for this category"
-              }
-            </span>
+            <strong class="${isOver ? "negative" : "positive"}">
+              ${money(isOver ? Math.abs(categoryRemaining) : categoryRemaining)}
+            </strong>
           </div>
         </div>
-      `;
+
+        <div class="progress">
+          <div
+            class="fill ${isOver ? "over-fill" : ""}"
+            style="width:${percentage}%"
+          ></div>
+        </div>
+
+        <div class="allocation-bottom">
+          <span>
+            ${percentage.toFixed(1)}% used
+          </span>
+
+          <span>
+            ${
+              isOver
+                ? "Excess charged to general budget"
+                : "Available for this category"
+            }
+          </span>
+        </div>
+
+        ${
+          isNear || isLimit || isOver
+            ? `
+              <p class="allocation-inline-alert ${
+                isNear ? "approaching" : "critical"
+              }">
+                ${
+                  isOver
+                    ? `Over budget by ${money(
+                        Math.abs(categoryRemaining),
+                      )}. Excess is charged to the general budget.`
+                    : isLimit
+                      ? "Category budget fully used."
+                      : `Approaching your limit. ${money(
+                          categoryRemaining,
+                        )} remaining.`
+                }
+              </p>
+            `
+            : ""
+        }
+
+      </div>
+    `;
     })
     .join("");
 
