@@ -2779,5 +2779,181 @@ document
   });
 })();
 
+/* ==========================================
+   PENVORIA - QUICK EXPENSE ENTRY (iPHONE)
+   Improvement 7 - append to app.js
+   ========================================== */
+
+(function installQuickExpense() {
+  if (window.__penvoriaQuickExpenseInstalled) return;
+  window.__penvoriaQuickExpenseInstalled = true;
+
+  // Keep your existing Spending page, warnings and filters.
+  const originalSpending = spending;
+
+  function quickExpenseDate(selectedMonth) {
+    // Use today for the current month; otherwise use day 1
+    // of the selected month. The full Add Expense form
+    // remains available when a different date is needed.
+    if (selectedMonth === todayMonth()) {
+      return `${selectedMonth}-${String(new Date().getDate()).padStart(2, "0")}`;
+    }
+    return `${selectedMonth}-01`;
+  }
+
+  spending = function (record, values) {
+    const categoryOptions = CATEGORIES.map(
+      (category) => `
+      <option value="${escapeHtml(category)}">${escapeHtml(category)}</option>
+    `,
+    ).join("");
+
+    const quickForm = `
+      <section class="panel pqe-panel" aria-labelledby="pqe-title">
+        <div class="pqe-heading">
+          <div>
+            <h2 id="pqe-title">Quick expense</h2>
+            <p class="panel-sub">Save an expense without opening a popup.</p>
+          </div>
+          <span class="pqe-bolt" aria-hidden="true">⚡</span>
+        </div>
+
+        <form id="pqe-form" autocomplete="off">
+          <div class="pqe-grid">
+            <label class="pqe-field">
+              <span>Amount (MVR)</span>
+              <input name="amount" type="text" inputmode="decimal"
+                     placeholder="0.00" autocomplete="off" required
+                     aria-label="Expense amount in MVR" maxlength="15">
+            </label>
+
+            <label class="pqe-field">
+              <span>Category</span>
+              <select id="pqe-category" name="category" required>
+                <option value="" selected disabled>Choose category</option>
+                ${categoryOptions}
+              </select>
+            </label>
+
+            <label class="pqe-field pqe-full" id="pqe-custom-row" hidden>
+              <span>Custom category</span>
+              <input id="pqe-custom" name="customCategory"
+                     type="text" maxlength="60"
+                     placeholder="Enter your category">
+            </label>
+
+            <label class="pqe-field pqe-full">
+              <span>Description (optional)</span>
+              <input name="title" type="text" maxlength="80"
+                     placeholder="What did you spend on?">
+            </label>
+          </div>
+
+          <div class="pqe-footer">
+            <small>Date: ${quickExpenseDate(month)} · ${escapeHtml(monthLabel(month))}</small>
+            <button class="primary" type="submit">Save expense</button>
+          </div>
+          <p id="pqe-message" class="pqe-message" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+    `;
+
+    return quickForm + originalSpending(record, values);
+  };
+
+  // Reveal the custom category field only when needed.
+  document.querySelector("#app").addEventListener("change", (event) => {
+    if (event.target.id !== "pqe-category") return;
+
+    const row = document.getElementById("pqe-custom-row");
+    const input = document.getElementById("pqe-custom");
+    const custom = event.target.value === "Other / Custom";
+
+    row.hidden = !custom;
+    input.required = custom;
+    if (!custom) input.value = "";
+  });
+
+  document.querySelector("#app").addEventListener("submit", (event) => {
+    if (event.target.id !== "pqe-form") return;
+    event.preventDefault();
+
+    const form = event.target;
+    const message = form.querySelector("#pqe-message");
+    const fail = (text) => {
+      message.textContent = text;
+      message.classList.add("pqe-error");
+    };
+
+    if (!window.penvoriaCloud?.ready) {
+      fail("Your cloud data is not ready. Please try again after it loads.");
+      return;
+    }
+
+    const raw = form.elements
+      .namedItem("amount")
+      .value.trim()
+      .replace(",", ".");
+    const amount = Number(raw);
+
+    if (
+      !/^\d+(?:\.\d{1,2})?$/.test(raw) ||
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
+      fail("Enter a valid amount, for example 125.50.");
+      return;
+    }
+
+    const category = form.elements.namedItem("category").value;
+    if (!CATEGORIES.includes(category)) {
+      fail("Choose an expense category.");
+      return;
+    }
+
+    const customCategory = form.elements
+      .namedItem("customCategory")
+      .value.trim();
+    if (category === "Other / Custom" && !customCategory) {
+      fail("Enter the name of your custom category.");
+      return;
+    }
+
+    const description = form.elements.namedItem("title").value.trim();
+    const entry = {
+      id: makeId(),
+      amount: round(amount),
+      category,
+      title:
+        description ||
+        (category === "Other / Custom" ? customCategory : category),
+      date: quickExpenseDate(month),
+      type: "other",
+    };
+
+    if (category === "Other / Custom") {
+      entry.customCategory = customCategory;
+    }
+
+    // Match the standard expense shape and category allocation logic.
+    entry.type = isNeed(entry) ? "need" : "other";
+    data().expenses.push(entry);
+    save();
+
+    // Remove the form before iOS attempts to reposition its focused input.
+    if (form.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
+
+    render();
+
+    const confirmation = document.getElementById("pqe-message");
+    if (confirmation) {
+      confirmation.classList.remove("pqe-error");
+      confirmation.textContent = `${money(entry.amount)} added to ${categoryName(entry, "expenses")}.`;
+    }
+  });
+})();
+
 // cloud.js calls render() after
 // authentication and account loading.

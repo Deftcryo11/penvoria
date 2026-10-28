@@ -2288,6 +2288,140 @@ body.authenticated .auth-screen {
   }
 }
 
+/* ==========================================
+   PENVORIA - QUICK EXPENSE ENTRY
+   Improvement 7
+   ========================================== */
+
+/* Keep the desktop interface unchanged */
+.pqe-panel {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .pqe-panel {
+    display: block;
+    padding: 18px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--panel);
+  }
+
+  .pqe-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 17px;
+  }
+
+  .pqe-heading h2 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    font-weight: 750;
+  }
+
+  .pqe-heading .panel-sub {
+    margin: 0;
+  }
+
+  .pqe-bolt {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+
+    width: 36px;
+    height: 36px;
+
+    border-radius: 11px;
+    background: var(--accent2);
+    font-size: 19px;
+  }
+
+  .pqe-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .pqe-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .pqe-field[hidden] {
+    display: none !important;
+  }
+
+  .pqe-field span {
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--text);
+  }
+
+  .pqe-field input,
+  .pqe-field select {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 48px;
+
+    padding: 11px 13px;
+
+    /* Prevent iPhone focus zoom */
+    font-size: 16px !important;
+    line-height: 1.4;
+
+    border: 1px solid var(--border);
+    border-radius: 11px;
+
+    background: var(--bg);
+    color: var(--text);
+    box-sizing: border-box;
+  }
+
+  .pqe-field input:focus,
+  .pqe-field select:focus {
+    border-color: var(--accent);
+  }
+
+  .pqe-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 19px;
+  }
+
+  .pqe-footer small {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .pqe-footer button {
+    width: 100%;
+    min-height: 48px;
+    font-size: 15px;
+  }
+
+  .pqe-message {
+    margin: 10px 0 0;
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  .pqe-message:empty {
+    display: none;
+  }
+
+  .pqe-message.pqe-error {
+    color: var(--danger);
+  }
+}
+
 /* iPhone layout */
 
 @media (max-width: 700px) {
