@@ -1806,6 +1806,153 @@ body.authenticated .auth-screen {
   white-space: nowrap;
 }
 
+/* ==========================================
+   PENVORIA - CATEGORY BUDGET WARNINGS
+   Improvement 4
+   ========================================== */
+
+.penvoria-alert-summary {
+  border-left: 4px solid #d99a32;
+}
+
+.penvoria-alert-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.penvoria-alert-heading h2 {
+  margin: 0 0 4px;
+}
+
+.penvoria-alert-heading .panel-sub {
+  margin: 0;
+}
+
+.penvoria-alert-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  width: 36px;
+  height: 36px;
+
+  border-radius: 50%;
+
+  background: rgba(217, 154, 50, 0.12);
+  color: #b77b1f;
+
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.penvoria-alert-summary .hint {
+  margin-top: 12px;
+}
+
+.penvoria-budget-alert-list {
+  display: grid;
+  gap: 12px;
+}
+
+.penvoria-budget-alert {
+  padding: 16px;
+
+  border: 1px solid var(--border);
+  border-left: 4px solid #d99a32;
+  border-radius: 11px;
+
+  background: var(--panel);
+}
+
+.penvoria-budget-alert.is-critical {
+  border-left-color: #d46262;
+}
+
+.penvoria-budget-alert-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  margin-bottom: 12px;
+}
+
+.penvoria-budget-alert-top strong {
+  font-size: 14px;
+}
+
+.penvoria-budget-alert-status {
+  padding: 5px 9px;
+
+  border-radius: 20px;
+
+  background: rgba(217, 154, 50, 0.12);
+  color: #b77b1f;
+
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.is-critical .penvoria-budget-alert-status {
+  background: rgba(212, 98, 98, 0.12);
+  color: #d46262;
+}
+
+.penvoria-budget-alert-details {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  margin-bottom: 9px;
+
+  font-size: 12px;
+}
+
+.penvoria-budget-alert-details span {
+  color: var(--muted);
+}
+
+.penvoria-budget-alert-progress {
+  height: 9px;
+
+  border-radius: 20px;
+  overflow: hidden;
+
+  background: var(--border);
+}
+
+.penvoria-budget-alert-progress div {
+  height: 100%;
+  border-radius: 20px;
+  background: #d99a32;
+}
+
+.is-critical .penvoria-budget-alert-progress div {
+  background: #d46262;
+}
+
+.penvoria-budget-alert-message {
+  margin: 9px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+@media (max-width: 700px) {
+  .penvoria-budget-alert {
+    padding: 13px;
+  }
+
+  .penvoria-budget-alert-details {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
 @media (max-width: 700px) {
   .cloud-toolbar {
     display: flex;
