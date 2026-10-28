@@ -167,6 +167,7 @@ function clearCloudMemory() {
 }
 
 function showLogin() {
+  window.PenvoriaRecurring?.reset();
   authEpoch += 1;
   releaseAccountEditLock();
   clearCloudMemory();
@@ -656,6 +657,9 @@ async function loadAccount() {
     cloud.failed = false;
 
     updateSyncStatus();
+
+    // Recurring templates are a separate owner-scoped cloud table.
+    void window.PenvoriaRecurring?.loadForUser(account.id);
 
     // Retry any recovered unsynced months.
     void flushCloudQueue();
