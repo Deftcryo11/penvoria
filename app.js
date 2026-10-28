@@ -2,7 +2,6 @@
 
 // Penvoria personal finance application
 const STORAGE = "velmora-preview-v1";
-const THEME = "velmora-theme";
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -2022,19 +2021,4 @@ $("#menuBtn").onclick = () => {
   $("#sidebar").classList.toggle("open");
 };
 
-// ==========================================
-// DARK MODE
-// ==========================================
-
-if (localStorage.getItem(THEME) === "dark") {
-  document.body.classList.add("dark");
-}
-
-$("#themeBtn").onclick = () => {
-  document.body.classList.toggle("dark");
-
-  localStorage.setItem(
-    THEME,
-    document.body.classList.contains("dark") ? "dark" : "light",
-  );
-};
+// Theme logic is managed by theme.js.

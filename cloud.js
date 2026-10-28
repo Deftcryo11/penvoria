@@ -45,17 +45,14 @@ function releaseAccountEditLock() {
 }
 
 async function acquireAccountEditLock(userId) {
-  if (
-    editLockUser === userId &&
-    editLockRelease
-  ) {
+  if (editLockUser === userId && editLockRelease) {
     return true;
   }
 
   if (!navigator.locks?.request) {
     throw new Error(
       "Single-tab protection requires HTTPS " +
-      "or localhost and Web Locks support."
+        "or localhost and Web Locks support.",
     );
   }
 
@@ -88,14 +85,11 @@ async function acquireAccountEditLock(userId) {
         editLockRelease = release;
         resolveAcquired(true);
       });
-    }
+    },
   );
 
   void lifetime.catch((error) => {
-    console.error(
-      "Penvoria editing lock failed:",
-      error
-    );
+    console.error("Penvoria editing lock failed:", error);
 
     resolveAcquired(false);
 
@@ -105,13 +99,9 @@ async function acquireAccountEditLock(userId) {
       editLockRelease = null;
       cloud.ready = false;
 
-      document.body.classList.remove(
-        "authenticated"
-      );
+      document.body.classList.remove("authenticated");
 
-      document.body.classList.add(
-        "auth-locked"
-      );
+      document.body.classList.add("auth-locked");
 
       authScreen.hidden = false;
       authForm.hidden = true;
@@ -119,15 +109,14 @@ async function acquireAccountEditLock(userId) {
 
       setAuthMessage(
         "Editing lock lost. Preserve this tab " +
-        "and export a backup before restarting.",
-        true
+          "and export a backup before restarting.",
+        true,
       );
     }
   });
 
   return acquired;
 }
-
 
 const authScreen = document.querySelector("#authScreen");
 const startupScreen = document.querySelector("#startupScreen");
@@ -190,6 +179,14 @@ function showLogin() {
   document.body.classList.add("auth-locked");
 
   authScreen.hidden = false;
+
+  // Clear the password whenever the login screen appears.
+  const passwordInput = document.getElementById("authPassword");
+
+  if (passwordInput) {
+    passwordInput.value = "";
+  }
+
   authForm.hidden = false;
 
   setAuthMessage("");
@@ -318,10 +315,7 @@ function updateSyncStatus() {
   const count = Object.keys(cloud.drafts).length;
 
   if (cloud.recoveryError) {
-    setCloudStatus(
-      "Local recovery error ? do not clear browser data",
-      true
-    );
+    setCloudStatus("Local recovery error ? do not clear browser data", true);
     return;
   }
 
@@ -513,9 +507,7 @@ function flushCloudQueue() {
         cloud.ready &&
         cloud.user?.id !== userId &&
         navigator.onLine &&
-        Object.keys(cloud.drafts).some(
-          (key) => !cloud.conflicts.has(key)
-        )
+        Object.keys(cloud.drafts).some((key) => !cloud.conflicts.has(key))
       ) {
         void flushCloudQueue();
       }
@@ -589,8 +581,7 @@ async function loadAccount() {
     const account = userData.user;
 
     // Protect shared pending financial records.
-    const hasEditLock =
-      await acquireAccountEditLock(account.id);
+    const hasEditLock = await acquireAccountEditLock(account.id);
 
     if (thisLoadEpoch !== authEpoch) {
       if (hasEditLock) releaseAccountEditLock();
@@ -602,37 +593,22 @@ async function loadAccount() {
       cloud.user = null;
       state = { months: {} };
 
-      document.body.classList.remove(
-        "authenticated",
-        "auth-pending"
-      );
+      document.body.classList.remove("authenticated", "auth-pending");
 
-      document.body.classList.add(
-        "auth-locked"
-      );
+      document.body.classList.add("auth-locked");
 
       authScreen.hidden = false;
       authForm.hidden = true;
 
-      document.querySelector(
-        "#authHeading"
-      ).textContent =
+      document.querySelector("#authHeading").textContent =
         "Penvoria is open in another tab";
 
-      document.querySelector(
-        "#authSubtitle"
-      ).textContent =
+      document.querySelector("#authSubtitle").textContent =
         "Close the other Penvoria tab or window, then reload this one.";
 
-      setAuthMessage(
-        "Only one tab can edit this account at a time.",
-        true
-      );
+      setAuthMessage("Only one tab can edit this account at a time.", true);
 
-      setCloudStatus(
-        "Another tab is editing ? this tab is locked",
-        true
-      );
+      setCloudStatus("Another tab is editing ? this tab is locked", true);
 
       hideStartupScreen();
       return;
@@ -891,15 +867,14 @@ async function initializeCloud() {
 
     cloud.client.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
-        const hadDrafts =
-          Object.keys(cloud.drafts).length > 0;
+        const hadDrafts = Object.keys(cloud.drafts).length > 0;
 
         showLogin();
 
         if (hadDrafts) {
           setAuthMessage(
             "Signed out. Sign back in to recover pending changes saved on this device.",
-            true
+            true,
           );
         }
       } else if (
@@ -912,7 +887,7 @@ async function initializeCloud() {
 
         setAuthMessage(
           "Account changed in another tab. Refresh to load its budgets.",
-          true
+          true,
         );
       }
     });
