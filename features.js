@@ -1,60 +1,61 @@
 "use strict";
 
 /* ==========================================
-   PENVORIA - CATEGORY BUDGET WARNINGS
-   Improvement 4
+   PENVORIA - FEATURE MODULE (v1.0)
+   Category alerts, analytics, filters, quick expense
+   Loads after app.js and before cloud.js.
    ========================================== */
 
-(function installBudgetWarnings() {
-  if (window.__penvoriaBudgetWarningsInstalled) {
+(function installPenvoriaFeatures() {
+  if (window.__penvoriaFeaturesV1Installed) return;
+
+  const app = document.getElementById("app");
+  if (!app) {
+    console.error("Penvoria features could not find #app.");
     return;
   }
 
-  window.__penvoriaBudgetWarningsInstalled = true;
+  window.__penvoriaFeaturesV1Installed = true;
 
-  // Preserve your existing page functions.
-  const originalOverview = overview;
-  const originalSpending = spending;
+  const coreRender = render;
+  const filters = { search: "", category: "", from: "", to: "" };
+  let selectedFilterMonth = month;
 
-  // Find categories that reached 80% or more.
-  function getBudgetWarnings(values) {
+  /* ------------------------------------------
+     1. CATEGORY BUDGET WARNINGS
+     ------------------------------------------ */
+
+  function budgetWarnings(values) {
     return (values.categoryBudgets || [])
-      .filter((budget) => {
-        return (
-          Number.isFinite(Number(budget.planned)) && Number(budget.planned) > 0
-        );
-      })
-      .map((budget) => ({
-        ...budget,
-        usage: Number(budget.spent) / Number(budget.planned),
+      .filter(
+        (item) =>
+          Number.isFinite(Number(item.planned)) && Number(item.planned) > 0,
+      )
+      .map((item) => ({
+        ...item,
+        usage: Number(item.spent) / Number(item.planned),
       }))
-      .filter((budget) => budget.usage >= 0.8)
+      .filter((item) => Number.isFinite(item.usage) && item.usage >= 0.8)
       .sort((a, b) => b.usage - a.usage);
   }
 
-  function warningMessage(budget) {
-    if (budget.usage > 1) {
-      return "Over budget by " + money(budget.spent - budget.planned);
+  function warningMessage(item) {
+    if (item.usage > 1) {
+      return "Over budget by " + money(item.spent - item.planned);
     }
 
-    if (budget.usage >= 1) {
+    if (item.usage >= 1) {
       return "Monthly allocation fully used";
     }
 
-    return money(budget.planned - budget.spent) + " remaining";
+    return money(item.planned - item.spent) + " remaining";
   }
 
-  // Show a compact warning on Overview.
-  overview = function (record, values) {
-    const warnings = getBudgetWarnings(values);
+  function overviewWarnings(values) {
+    const warnings = budgetWarnings(values);
+    if (!warnings.length) return "";
 
-    const existingPage = originalOverview(record, values);
-
-    if (!warnings.length) {
-      return existingPage;
-    }
-
-    const critical = warnings.filter((budget) => budget.usage >= 1).length;
+    const critical = warnings.filter((item) => item.usage >= 1).length;
 
     const approaching = warnings.length - critical;
 
@@ -68,15 +69,14 @@
     return `
       <section class="panel penvoria-alert-summary">
         <div class="penvoria-alert-heading">
-          <span class="penvoria-alert-symbol">
-            !
-          </span>
+          <span
+            class="penvoria-alert-symbol"
+            aria-hidden="true"
+          >!</span>
 
           <div>
             <h2>Category budget alerts</h2>
-            <p class="panel-sub">
-              ${message}
-            </p>
+            <p class="panel-sub">${message}</p>
           </div>
         </div>
 
@@ -85,32 +85,26 @@
           allocations and remaining balances.
         </p>
       </section>
-
-      ${existingPage}
     `;
-  };
+  }
 
-  // Show detailed warnings on Spending.
-  spending = function (record, values) {
-    const warnings = getBudgetWarnings(values);
+  function spendingWarnings(values) {
+    const warnings = budgetWarnings(values);
+    if (!warnings.length) return "";
 
-    const existingPage = originalSpending(record, values);
+    const cards = warnings
+      .map((item) => {
+        const critical = item.usage >= 1;
 
-    if (!warnings.length) {
-      return existingPage;
-    }
-
-    const warningCards = warnings
-      .map((budget) => {
-        const critical = budget.usage >= 1;
-
-        const status = critical
-          ? budget.usage > 1
+        const label =
+          item.usage > 1
             ? "Over budget"
-            : "Limit reached"
-          : "Approaching limit";
+            : critical
+              ? "Limit reached"
+              : "Approaching limit";
 
-        const percentage = (budget.usage * 100).toFixed(1);
+        const percentage = (item.usage * 100).toFixed(1);
+        const width = Math.min(100, item.usage * 100).toFixed(2);
 
         return `
           <div class="penvoria-budget-alert ${
@@ -119,37 +113,32 @@
 
             <div class="penvoria-budget-alert-top">
               <strong>
-                ${escapeHtml(budget.category)}
+                ${escapeHtml(item.category)}
               </strong>
 
               <span class="penvoria-budget-alert-status">
-                ${status}
+                ${label}
               </span>
             </div>
 
             <div class="penvoria-budget-alert-details">
               <span>
-                ${money(budget.spent)}
+                ${money(item.spent)}
                 of
-                ${money(budget.planned)}
+                ${money(item.planned)}
                 spent
               </span>
 
-              <strong>
-                ${percentage}% used
-              </strong>
+              <strong>${percentage}% used</strong>
             </div>
 
             <div class="penvoria-budget-alert-progress">
-              <div
-                style="width:${Math.min(100, budget.usage * 100)}%"
-              ></div>
+              <div style="width:${width}%"></div>
             </div>
 
             <p class="penvoria-budget-alert-message">
-              ${warningMessage(budget)}
+              ${warningMessage(item)}
             </p>
-
           </div>
         `;
       })
@@ -157,7 +146,6 @@
 
     return `
       <section class="panel penvoria-alert-panel">
-
         <div class="panel-head">
           <div>
             <h2>Category budget warnings</h2>
@@ -170,29 +158,17 @@
         </div>
 
         <div class="penvoria-budget-alert-list">
-          ${warningCards}
+          ${cards}
         </div>
-
       </section>
-
-      ${existingPage}
     `;
-  };
-})();
+  }
 
-/* ==========================================
-   PENVORIA - MONTHLY FINANCIAL ANALYTICS
-   Improvement 5 (append to app.js)
-   ========================================== */
+  /* ------------------------------------------
+     2. MONTHLY FINANCIAL ANALYTICS
+     ------------------------------------------ */
 
-(function installPenvoriaAnalytics() {
-  if (window.__penvoriaAnalyticsInstalled) return;
-  window.__penvoriaAnalyticsInstalled = true;
-
-  // Keep the existing monthly history and Open buttons.
-  const previousHistory = history;
-
-  function monthlyAnalyticsRecords() {
+  function activeMonthRecords() {
     const types = ["income", "needs", "expenses", "savings"];
 
     return Object.entries(state.months || {})
@@ -207,6 +183,7 @@
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, record]) => ({
         key,
+
         values: totals(
           Object.fromEntries(
             types.map((type) => [
@@ -227,7 +204,11 @@
 
   function trendChart(rows) {
     if (!rows.length) {
-      return `<p class="pa-empty">Add financial entries to see your monthly trends.</p>`;
+      return `
+        <p class="pa-empty">
+          Add financial entries to see your monthly trends.
+        </p>
+      `;
     }
 
     const scale = Math.max(
@@ -252,182 +233,280 @@
         const bars = series
           .map(([field, style, label]) => {
             const value = Math.max(0, Number(values[field]) || 0);
+
             const height = Math.min(100, (value / scale) * 100);
+
             const description = `${shortMonth(key)}: ${label}, ${money(value)}`;
 
             return `
-          <div class="pa-bar pa-bar-${style}"
-               style="height:${height.toFixed(3)}%"
-               role="img"
-               aria-label="${escapeHtml(description)}"
-               title="${escapeHtml(description)}"></div>
-        `;
+              <div
+                class="pa-bar pa-bar-${style}"
+                style="height:${height.toFixed(3)}%"
+                role="img"
+                aria-label="${escapeHtml(description)}"
+                title="${escapeHtml(description)}"
+              ></div>
+            `;
           })
           .join("");
 
         return `
-        <div class="pa-month-column">
-          <div class="pa-bars">${bars}</div>
-          <span class="pa-month-name">${escapeHtml(shortMonth(key))}</span>
-        </div>
-      `;
+          <div class="pa-month-column">
+            <div class="pa-bars">${bars}</div>
+
+            <span class="pa-month-name">
+              ${escapeHtml(shortMonth(key))}
+            </span>
+          </div>
+        `;
       })
       .join("");
 
     return `
       <div class="pa-legend" aria-label="Chart legend">
-        <span><i class="pa-key pa-key-income"></i> Income received</span>
-        <span><i class="pa-key pa-key-expenses"></i> Expenses</span>
-        <span><i class="pa-key pa-key-savings"></i> Savings transferred</span>
+        <span>
+          <i class="pa-key pa-key-income"></i>
+          Income received
+        </span>
+
+        <span>
+          <i class="pa-key pa-key-expenses"></i>
+          Expenses
+        </span>
+
+        <span>
+          <i class="pa-key pa-key-savings"></i>
+          Savings transferred
+        </span>
       </div>
-      <div class="pa-chart-scroll" role="region"
-           aria-label="Financial trends by month" tabindex="0">
-        <div class="pa-chart" style="--pa-month-count:${rows.length}; min-width:${Math.max(300, rows.length * 72)}px">
+
+      <div
+        class="pa-chart-scroll"
+        role="region"
+        aria-label="Financial trends by month"
+        tabindex="0"
+      >
+        <div
+          class="pa-chart"
+          style="
+            --pa-month-count:${rows.length};
+            min-width:${Math.max(300, rows.length * 72)}px
+          "
+        >
           ${columns}
         </div>
       </div>
-      <p class="pa-note">Last ${rows.length} month${rows.length === 1 ? "" : "s"} with recorded activity. Bars use a common MVR scale, up to ${money(scale)}.</p>
+
+      <p class="pa-note">
+        Last ${rows.length}
+        month${rows.length === 1 ? "" : "s"} with recorded
+        activity. Bars use a common MVR scale,
+        up to ${money(scale)}.
+      </p>
     `;
   }
 
   function categoryBreakdown(record) {
-    const spending = new Map();
+    const totalsByCategory = new Map();
 
     for (const expense of record.expenses || []) {
-      const amount = Number(expense.amount);
-      if (!Number.isFinite(amount) || amount <= 0) continue;
+      const value = Number(expense.amount);
+
+      if (!Number.isFinite(value) || value <= 0) {
+        continue;
+      }
 
       const category = categoryName(expense, "expenses");
-      spending.set(category, (spending.get(category) || 0) + amount);
+
+      totalsByCategory.set(
+        category,
+        (totalsByCategory.get(category) || 0) + value,
+      );
     }
 
-    const ranked = [...spending.entries()].sort((a, b) => b[1] - a[1]);
+    const ranked = [...totalsByCategory.entries()].sort((a, b) => b[1] - a[1]);
 
     if (!ranked.length) {
-      return `<p class="pa-empty">No expenses recorded for ${escapeHtml(monthLabel(month))}.</p>`;
+      return `
+        <p class="pa-empty">
+          No expenses recorded for
+          ${escapeHtml(monthLabel(month))}.
+        </p>
+      `;
     }
 
     const grandTotal = ranked.reduce((sum, [, value]) => sum + value, 0);
-    const firstFive = ranked.slice(0, 5);
+
     const remaining = ranked
       .slice(5)
       .reduce((sum, [, value]) => sum + value, 0);
-    const display =
+
+    const visible =
       remaining > 0
-        ? [...firstFive, ["Other categories combined", remaining]]
-        : firstFive;
+        ? [...ranked.slice(0, 5), ["Other categories combined", remaining]]
+        : ranked.slice(0, 5);
 
     return `
       <div class="pa-category-list">
-        ${display
-          .map(([category, amount]) => {
-            const percent =
-              grandTotal > 0
-                ? Math.min(100, Math.max(0, (amount / grandTotal) * 100))
-                : 0;
+        ${visible
+          .map(([category, value]) => {
+            const percent = Math.min(
+              100,
+              Math.max(0, (value / grandTotal) * 100),
+            );
 
             return `
-            <div class="pa-category-row">
-              <div class="pa-category-header">
-                <span>${escapeHtml(category)}</span>
-                <strong>${money(amount)} · ${percent.toFixed(1)}%</strong>
+              <div class="pa-category-row">
+                <div class="pa-category-header">
+                  <span>
+                    ${escapeHtml(category)}
+                  </span>
+
+                  <strong>
+                    ${money(value)}
+                    · ${percent.toFixed(1)}%
+                  </strong>
+                </div>
+
+                <div
+                  class="pa-category-track"
+                  role="img"
+                  aria-label="${escapeHtml(
+                    category,
+                  )}: ${percent.toFixed(1)}% of monthly expenses"
+                >
+                  <div
+                    style="width:${percent.toFixed(2)}%"
+                  ></div>
+                </div>
               </div>
-              <div class="pa-category-track" role="img"
-                   aria-label="${escapeHtml(category)}: ${percent.toFixed(1)}% of monthly expenses">
-                <div style="width:${percent.toFixed(2)}%"></div>
-              </div>
-            </div>
-          `;
+            `;
           })
           .join("")}
       </div>
     `;
   }
 
-  // Extend Monthly History without replacing its existing rows.
-  history = function () {
+  function analyticsHTML() {
     const currentRecord = data(month);
     const current = totals(currentRecord);
-    const recent = monthlyAnalyticsRecords().slice(-6);
+    const recent = activeMonthRecords().slice(-6);
+
     const savingsRate =
       current.incomeReceived > 0
         ? (current.savingsTransferred / current.incomeReceived) * 100
         : null;
 
-    const insights = `
+    return `
       <section class="panel pa-insights-panel">
         <div class="panel-head">
           <div>
             <h2>Financial analytics</h2>
-            <p class="panel-sub">Actual money received, spent, and transferred for ${escapeHtml(monthLabel(month))}.</p>
+
+            <p class="panel-sub">
+              Actual money received, spent,
+              and transferred for
+              ${escapeHtml(monthLabel(month))}.
+            </p>
           </div>
         </div>
+
         <div class="pa-insights-grid">
-          <div class="pa-insight"><span>Income received</span><strong>${money(current.incomeReceived)}</strong></div>
-          <div class="pa-insight"><span>Total expenses</span><strong>${money(current.expenses)}</strong></div>
-          <div class="pa-insight"><span>Savings transferred</span><strong>${money(current.savingsTransferred)}</strong></div>
-          <div class="pa-insight"><span>Monthly cash remainder</span><strong class="${current.cashRemainder < 0 ? "negative" : "positive"}">${money(current.cashRemainder)}</strong></div>
-          <div class="pa-insight"><span>Actual savings rate</span><strong>${savingsRate === null ? "—" : `${savingsRate.toFixed(1)}%`}</strong></div>
+          <div class="pa-insight">
+            <span>Income received</span>
+            <strong>
+              ${money(current.incomeReceived)}
+            </strong>
+          </div>
+
+          <div class="pa-insight">
+            <span>Total expenses</span>
+            <strong>${money(current.expenses)}</strong>
+          </div>
+
+          <div class="pa-insight">
+            <span>Savings transferred</span>
+            <strong>
+              ${money(current.savingsTransferred)}
+            </strong>
+          </div>
+
+          <div class="pa-insight">
+            <span>Monthly cash remainder</span>
+
+            <strong class="${
+              current.cashRemainder < 0 ? "negative" : "positive"
+            }">
+              ${money(current.cashRemainder)}
+            </strong>
+          </div>
+
+          <div class="pa-insight">
+            <span>Actual savings rate</span>
+
+            <strong>
+              ${savingsRate === null ? "—" : `${savingsRate.toFixed(1)}%`}
+            </strong>
+          </div>
         </div>
-        <p class="pa-note">Cash remainder excludes balances carried in from other months. Savings rate is transferred savings divided by received income.</p>
+
+        <p class="pa-note">
+          Cash remainder excludes balances carried
+          in from other months. Savings rate is
+          transferred savings divided by received income.
+        </p>
       </section>
+
       <section class="panel pa-insights-panel">
         <h2>Monthly trends</h2>
-        <p class="panel-sub">Compare up to six months of actual income, expenses, and savings transfers.</p>
+
+        <p class="panel-sub">
+          Compare up to six months of actual income,
+          expenses, and savings transfers.
+        </p>
+
         ${trendChart(recent)}
       </section>
+
       <section class="panel pa-insights-panel">
         <h2>Spending by category</h2>
-        <p class="panel-sub">Expense breakdown for ${escapeHtml(monthLabel(month))}. Change the month at the top of the page to view another.</p>
+
+        <p class="panel-sub">
+          Expense breakdown for
+          ${escapeHtml(monthLabel(month))}.
+          Change the month at the top of the page
+          to view another.
+        </p>
+
         ${categoryBreakdown(currentRecord)}
       </section>
     `;
+  }
 
-    return insights + previousHistory();
-  };
-})();
+  /* ------------------------------------------
+     3. EXPENSE SEARCH / FILTERS
+     ------------------------------------------ */
 
-/* ==========================================
-   PENVORIA - SEARCH & FILTER EXPENSES
-   Improvement 6 - append to app.js
-   ========================================== */
-
-(function installExpenseFilters() {
-  if (window.__penvoriaExpenseFiltersInstalled) return;
-  window.__penvoriaExpenseFiltersInstalled = true;
-
-  const originalRender = render;
-
-  const filters = {
-    search: "",
-    category: "",
-    from: "",
-    to: "",
-  };
-
-  let filterMonth = month;
-
-  function clearFilterValues() {
+  function resetFilters() {
     filters.search = "";
     filters.category = "";
     filters.from = "";
     filters.to = "";
   }
 
-  function getMatchingExpenses() {
+  function matchingExpenses() {
     const query = filters.search.trim().toLocaleLowerCase();
 
     return data().expenses.filter((expense) => {
       const category = categoryName(expense, "expenses");
 
       const title = String(expense.title || "");
+
       const date = String(expense.date || "");
 
-      const matchesText =
-        !query || `${title} ${category}`.toLocaleLowerCase().includes(query);
-
       return (
-        matchesText &&
+        (!query ||
+          `${title} ${category}`.toLocaleLowerCase().includes(query)) &&
         (!filters.category || category === filters.category) &&
         (!filters.from || date >= filters.from) &&
         (!filters.to || date <= filters.to)
@@ -436,16 +515,16 @@
   }
 
   function refreshExpenseResults() {
+    if (view !== "spending") return;
+
     const results = document.getElementById("pef-results");
 
     const summary = document.getElementById("pef-summary");
 
-    if (!results || !summary || view !== "spending") {
-      return;
-    }
+    if (!results || !summary) return;
 
     const all = data().expenses;
-    const matched = getMatchingExpenses();
+    const matched = matchingExpenses();
 
     results.innerHTML = matched.length
       ? entryTable(matched, "expenses")
@@ -469,24 +548,15 @@
   }
 
   function mountExpenseFilters() {
-    // Reset filters when selecting another month.
-    if (month !== filterMonth) {
-      filterMonth = month;
-      clearFilterValues();
-    }
-
-    if (view !== "spending") return;
-
-    // Find the existing All Expenses panel.
-    const expensePanel = [...document.querySelectorAll("#app .panel")].find(
-      (panel) =>
-        panel.querySelector(".panel-head h2")?.textContent.trim() ===
+    const panel = [...app.querySelectorAll(".panel")].find(
+      (node) =>
+        node.querySelector(".panel-head h2")?.textContent.trim() ===
         "All expenses",
     );
 
-    if (!expensePanel) return;
+    if (!panel) return;
 
-    const heading = expensePanel.querySelector(".panel-head");
+    const heading = panel.querySelector(".panel-head");
 
     const originalTable = heading?.nextElementSibling;
 
@@ -495,10 +565,11 @@
       !originalTable ||
       !originalTable.matches(".table-wrap, .empty")
     ) {
+      console.warn("Penvoria could not locate the All Expenses table.");
+
       return;
     }
 
-    // Build categories from actual expense records.
     const categories = [
       ...new Set(data().expenses.map((item) => categoryName(item, "expenses"))),
     ].sort((a, b) => a.localeCompare(b));
@@ -507,9 +578,9 @@
       filters.category = "";
     }
 
-    const monthParts = month.split("-").map(Number);
+    const [year, monthNumber] = month.split("-").map(Number);
 
-    const lastDay = new Date(monthParts[0], monthParts[1], 0).getDate();
+    const lastDay = new Date(year, monthNumber, 0).getDate();
 
     const minDate = `${month}-01`;
 
@@ -521,7 +592,6 @@
 
     controls.innerHTML = `
       <div class="pef-grid">
-
         <label class="pef-field pef-search">
           <span>Search expenses</span>
 
@@ -545,13 +615,13 @@
             ${categories
               .map(
                 (category) => `
-              <option
-                value="${escapeHtml(category)}"
-                ${category === filters.category ? "selected" : ""}
-              >
-                ${escapeHtml(category)}
-              </option>
-            `,
+                  <option
+                    value="${escapeHtml(category)}"
+                    ${category === filters.category ? "selected" : ""}
+                  >
+                    ${escapeHtml(category)}
+                  </option>
+                `,
               )
               .join("")}
           </select>
@@ -580,7 +650,6 @@
             value="${escapeHtml(filters.to)}"
           >
         </label>
-
       </div>
 
       <div class="pef-footer">
@@ -600,202 +669,182 @@
       </div>
     `;
 
-    // Insert the controls above the transactions.
     heading.after(controls);
 
     const results = document.createElement("div");
 
     results.id = "pef-results";
-
     controls.after(results);
 
-    // Replace only the visual table.
-    // The original financial data remains unchanged.
     originalTable.remove();
 
     refreshExpenseResults();
   }
 
-  // Preserve the existing page rendering.
-  // Filtering only changes the displayed expense list.
-  render = function (...args) {
-    const result = originalRender(...args);
-
-    mountExpenseFilters();
-
-    return result;
-  };
-
-  // Search and date input events.
-  document.getElementById("app").addEventListener("input", (event) => {
-    if (!event.target.closest("#pef-controls")) {
-      return;
+  function updateFilterState(target) {
+    if (target.id === "pef-search") {
+      filters.search = target.value;
     }
 
-    if (event.target.id === "pef-search") {
-      filters.search = event.target.value;
+    if (target.id === "pef-category") {
+      filters.category = target.value;
     }
 
-    if (event.target.id === "pef-from") {
-      filters.from = event.target.value;
+    if (target.id === "pef-from") {
+      filters.from = target.value;
     }
 
-    if (event.target.id === "pef-to") {
-      filters.to = event.target.value;
+    if (target.id === "pef-to") {
+      filters.to = target.value;
     }
+  }
 
-    refreshExpenseResults();
-  });
-
-  // Category dropdown and date selection.
-  document.getElementById("app").addEventListener("change", (event) => {
-    if (!event.target.closest("#pef-controls")) {
-      return;
-    }
-
-    if (event.target.id === "pef-category") {
-      filters.category = event.target.value;
-    }
-
-    if (event.target.id === "pef-from") {
-      filters.from = event.target.value;
-    }
-
-    if (event.target.id === "pef-to") {
-      filters.to = event.target.value;
-    }
-
-    refreshExpenseResults();
-  });
-
-  // Clear all filters without reloading the page.
-  document.getElementById("app").addEventListener("click", (event) => {
-    const clearButton = event.target.closest("#pef-clear");
-
-    if (!clearButton) return;
-
-    clearFilterValues();
-
-    for (const id of ["pef-search", "pef-category", "pef-from", "pef-to"]) {
-      const control = document.getElementById(id);
-
-      if (control) {
-        control.value = "";
-      }
-    }
-
-    refreshExpenseResults();
-  });
-})();
-
-/* ==========================================
-   PENVORIA - QUICK EXPENSE ENTRY (iPHONE)
-   Improvement 7 - append to app.js
-   ========================================== */
-
-(function installQuickExpense() {
-  if (window.__penvoriaQuickExpenseInstalled) return;
-  window.__penvoriaQuickExpenseInstalled = true;
-
-  // Keep your existing Spending page, warnings and filters.
-  const originalSpending = spending;
+  /* ------------------------------------------
+     4. QUICK EXPENSE
+     ------------------------------------------ */
 
   function quickExpenseDate(selectedMonth) {
-    // Use today for the current month; otherwise use day 1
-    // of the selected month. The full Add Expense form
-    // remains available when a different date is needed.
     if (selectedMonth === todayMonth()) {
-      return `${selectedMonth}-${String(new Date().getDate()).padStart(2, "0")}`;
+      return (
+        `${selectedMonth}-` + String(new Date().getDate()).padStart(2, "0")
+      );
     }
+
     return `${selectedMonth}-01`;
   }
 
-  spending = function (record, values) {
-    const categoryOptions = CATEGORIES.map(
+  function quickExpenseHTML() {
+    const options = CATEGORIES.map(
       (category) => `
-      <option value="${escapeHtml(category)}">${escapeHtml(category)}</option>
-    `,
+          <option value="${escapeHtml(category)}">
+            ${escapeHtml(category)}
+          </option>
+        `,
     ).join("");
 
-    const quickForm = `
-      <section class="panel pqe-panel" aria-labelledby="pqe-title">
+    return `
+      <section
+        class="panel pqe-panel"
+        aria-labelledby="pqe-title"
+      >
         <div class="pqe-heading">
           <div>
             <h2 id="pqe-title">Quick expense</h2>
-            <p class="panel-sub">Save an expense without opening a popup.</p>
+
+            <p class="panel-sub">
+              Save an expense without opening a popup.
+            </p>
           </div>
-          <span class="pqe-bolt" aria-hidden="true">⚡</span>
+
+          <span
+            class="pqe-bolt"
+            aria-hidden="true"
+          >⚡</span>
         </div>
 
         <form id="pqe-form" autocomplete="off">
           <div class="pqe-grid">
             <label class="pqe-field">
               <span>Amount (MVR)</span>
-              <input name="amount" type="text" inputmode="decimal"
-                     placeholder="0.00" autocomplete="off" required
-                     aria-label="Expense amount in MVR" maxlength="15">
+
+              <input
+                name="amount"
+                type="text"
+                inputmode="decimal"
+                placeholder="0.00"
+                autocomplete="off"
+                required
+                aria-label="Expense amount in MVR"
+                maxlength="15"
+              >
             </label>
 
             <label class="pqe-field">
               <span>Category</span>
-              <select id="pqe-category" name="category" required>
-                <option value="" selected disabled>Choose category</option>
-                ${categoryOptions}
+
+              <select
+                id="pqe-category"
+                name="category"
+                required
+              >
+                <option
+                  value=""
+                  selected
+                  disabled
+                >
+                  Choose category
+                </option>
+
+                ${options}
               </select>
             </label>
 
-            <label class="pqe-field pqe-full" id="pqe-custom-row" hidden>
+            <label
+              class="pqe-field pqe-full"
+              id="pqe-custom-row"
+              hidden
+            >
               <span>Custom category</span>
-              <input id="pqe-custom" name="customCategory"
-                     type="text" maxlength="60"
-                     placeholder="Enter your category">
+
+              <input
+                id="pqe-custom"
+                name="customCategory"
+                type="text"
+                maxlength="60"
+                placeholder="Enter your category"
+              >
             </label>
 
             <label class="pqe-field pqe-full">
               <span>Description (optional)</span>
-              <input name="title" type="text" maxlength="80"
-                     placeholder="What did you spend on?">
+
+              <input
+                name="title"
+                type="text"
+                maxlength="80"
+                placeholder="What did you spend on?"
+              >
             </label>
           </div>
 
           <div class="pqe-footer">
-            <small>Date: ${quickExpenseDate(month)} · ${escapeHtml(monthLabel(month))}</small>
-            <button class="primary" type="submit">Save expense</button>
+            <small>
+              Date: ${quickExpenseDate(month)}
+              · ${escapeHtml(monthLabel(month))}
+            </small>
+
+            <button
+              class="primary"
+              type="submit"
+            >
+              Save expense
+            </button>
           </div>
-          <p id="pqe-message" class="pqe-message" role="status" aria-live="polite"></p>
+
+          <p
+            id="pqe-message"
+            class="pqe-message"
+            role="status"
+            aria-live="polite"
+          ></p>
         </form>
       </section>
     `;
+  }
 
-    return quickForm + originalSpending(record, values);
-  };
-
-  // Reveal the custom category field only when needed.
-  document.querySelector("#app").addEventListener("change", (event) => {
-    if (event.target.id !== "pqe-category") return;
-
-    const row = document.getElementById("pqe-custom-row");
-    const input = document.getElementById("pqe-custom");
-    const custom = event.target.value === "Other / Custom";
-
-    row.hidden = !custom;
-    input.required = custom;
-    if (!custom) input.value = "";
-  });
-
-  document.querySelector("#app").addEventListener("submit", (event) => {
-    if (event.target.id !== "pqe-form") return;
-    event.preventDefault();
-
-    const form = event.target;
+  function handleQuickExpenseSubmit(form) {
     const message = form.querySelector("#pqe-message");
+
     const fail = (text) => {
       message.textContent = text;
       message.classList.add("pqe-error");
     };
 
     if (!window.penvoriaCloud?.ready) {
-      fail("Your cloud data is not ready. Please try again after it loads.");
+      fail(
+        "Your cloud data is not ready. " + "Please try again after it loads.",
+      );
+
       return;
     }
 
@@ -803,18 +852,21 @@
       .namedItem("amount")
       .value.trim()
       .replace(",", ".");
-    const amount = Number(raw);
+
+    const expenseAmount = Number(raw);
 
     if (
       !/^\d+(?:\.\d{1,2})?$/.test(raw) ||
-      !Number.isFinite(amount) ||
-      amount <= 0
+      !Number.isFinite(expenseAmount) ||
+      expenseAmount <= 0
     ) {
       fail("Enter a valid amount, for example 125.50.");
+
       return;
     }
 
     const category = form.elements.namedItem("category").value;
+
     if (!CATEGORIES.includes(category)) {
       fail("Choose an expense category.");
       return;
@@ -823,33 +875,39 @@
     const customCategory = form.elements
       .namedItem("customCategory")
       .value.trim();
+
     if (category === "Other / Custom" && !customCategory) {
       fail("Enter the name of your custom category.");
       return;
     }
 
     const description = form.elements.namedItem("title").value.trim();
-    const entry = {
+
+    const expense = {
       id: makeId(),
-      amount: round(amount),
+      amount: round(expenseAmount),
       category,
+
       title:
         description ||
         (category === "Other / Custom" ? customCategory : category),
+
       date: quickExpenseDate(month),
       type: "other",
     };
 
     if (category === "Other / Custom") {
-      entry.customCategory = customCategory;
+      expense.customCategory = customCategory;
     }
 
-    // Match the standard expense shape and category allocation logic.
-    entry.type = isNeed(entry) ? "need" : "other";
-    data().expenses.push(entry);
+    expense.type = isNeed(expense) ? "need" : "other";
+
+    // The core application already provides
+    // the correct save and calculation logic.
+    data().expenses.push(expense);
     save();
 
-    // Remove the form before iOS attempts to reposition its focused input.
+    // Close the mobile keyboard before rerendering.
     if (form.contains(document.activeElement)) {
       document.activeElement.blur();
     }
@@ -857,12 +915,116 @@
     render();
 
     const confirmation = document.getElementById("pqe-message");
+
     if (confirmation) {
       confirmation.classList.remove("pqe-error");
-      confirmation.textContent = `${money(entry.amount)} added to ${categoryName(entry, "expenses")}.`;
+
+      confirmation.textContent =
+        `${money(expense.amount)} added to ` +
+        `${categoryName(expense, "expenses")}.`;
     }
+  }
+
+  /* ------------------------------------------
+     5. ONE RENDER HOOK
+     ------------------------------------------ */
+
+  render = function (...args) {
+    const result = coreRender(...args);
+
+    // Keep filters within their selected month.
+    if (month !== selectedFilterMonth) {
+      selectedFilterMonth = month;
+      resetFilters();
+    }
+
+    if (view === "dashboard") {
+      const warnings = overviewWarnings(totals(data()));
+
+      if (warnings) {
+        app.insertAdjacentHTML("afterbegin", warnings);
+      }
+    } else if (view === "history") {
+      app.insertAdjacentHTML("afterbegin", analyticsHTML());
+    } else if (view === "spending") {
+      const warnings = spendingWarnings(totals(data()));
+
+      app.insertAdjacentHTML("afterbegin", quickExpenseHTML() + warnings);
+
+      mountExpenseFilters();
+    }
+
+    return result;
+  };
+
+  /* ------------------------------------------
+     6. DELEGATED EVENTS (BOUND ONCE)
+     ------------------------------------------ */
+
+  app.addEventListener("input", (event) => {
+    if (!event.target.closest("#pef-controls")) {
+      return;
+    }
+
+    updateFilterState(event.target);
+    refreshExpenseResults();
+  });
+
+  app.addEventListener("change", (event) => {
+    // Quick Expense custom category.
+    if (event.target.id === "pqe-category") {
+      const row = document.getElementById("pqe-custom-row");
+
+      const input = document.getElementById("pqe-custom");
+
+      if (!row || !input) return;
+
+      const custom = event.target.value === "Other / Custom";
+
+      row.hidden = !custom;
+      input.required = custom;
+
+      if (!custom) {
+        input.value = "";
+      }
+
+      return;
+    }
+
+    // Expense filter changes.
+    if (!event.target.closest("#pef-controls")) {
+      return;
+    }
+
+    updateFilterState(event.target);
+    refreshExpenseResults();
+  });
+
+  app.addEventListener("click", (event) => {
+    if (!event.target.closest("#pef-clear")) {
+      return;
+    }
+
+    resetFilters();
+
+    for (const id of ["pef-search", "pef-category", "pef-from", "pef-to"]) {
+      const field = document.getElementById(id);
+
+      if (field) {
+        field.value = "";
+      }
+    }
+
+    refreshExpenseResults();
+  });
+
+  app.addEventListener("submit", (event) => {
+    if (event.target.id !== "pqe-form") {
+      return;
+    }
+
+    event.preventDefault();
+
+    handleQuickExpenseSubmit(event.target);
   });
 })();
-
-// cloud.js calls render() after
-// authentication and account loading.
