@@ -38,6 +38,20 @@
     <script src="config.js" defer></script>
     <script src="app.js" defer></script>
     <script src="cloud.js" defer></script>
+
+    <!-- PDF generation libraries -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js"
+      defer
+    ></script>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.9/dist/jspdf.plugin.autotable.min.js"
+      defer
+    ></script>
+
+    <!-- Penvoria export feature -->
+    <script src="export.js" defer></script>
   </head>
 
   <body class="auth-pending">
@@ -212,13 +226,26 @@
             >
               Connecting...
             </span>
-            <button
-              id="exportBackupBtn"
-              type="button"
-              class="secondary backup-btn"
-            >
-              Export Backup
-            </button>
+
+            <div class="export-controls">
+              <select
+                id="exportFormat"
+                class="export-format"
+                aria-label="Choose export format"
+              >
+                <option value="csv">CSV — Spreadsheet</option>
+                <option value="pdf">PDF — Financial Report</option>
+                <option value="json">JSON — Full Backup</option>
+              </select>
+
+              <button
+                id="exportReportBtn"
+                class="secondary backup-btn"
+                type="button"
+              >
+                Export
+              </button>
+            </div>
           </div>
 
           <!-- Page heading -->
