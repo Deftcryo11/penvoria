@@ -26,8 +26,10 @@
     <meta name="theme-color" content="#11796f" />
 
     <!-- Stylesheet -->
+    <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="features.css" />
+    <link rel="stylesheet" href="recurring.css" />
 
     <!-- Supabase JavaScript -->
     <script
@@ -39,7 +41,9 @@
     <script src="config.js" defer></script>
     <script src="app.js" defer></script>
     <script src="features.js" defer></script>
+    <script src="recurring.js" defer></script>
     <script src="cloud.js" defer></script>
+    <script src="conflict-recovery.js" defer></script>
 
     <!-- PDF generation libraries -->
     <script
@@ -54,6 +58,8 @@
 
     <!-- Penvoria export feature -->
     <script src="export.js" defer></script>
+    <script src="report-range.js" defer></script>
+    <script src="pwa.js" defer></script>
   </head>
 
   <body class="auth-pending">
@@ -190,6 +196,24 @@
 
           <button class="nav" data-view="history" type="button">
             ◷ <span>Monthly history</span>
+          </button>
+
+          <button class="nav" data-view="recurring" type="button">
+            <svg
+              viewBox="0 0 24 24"
+              width="17"
+              height="17"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M20 11a8 8 0 1 0-2 6" />
+              <path d="M20 4v7h-7" />
+            </svg>
+            <span>Recurring transactions</span>
           </button>
         </nav>
       </aside>
