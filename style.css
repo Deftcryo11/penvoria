@@ -1953,3 +1953,43 @@ body.dark .allocation-inline-alert.approaching {
     touch-action: pan-y;
   }
 }
+
+/* ==========================================
+   PENVORIA - iOS MODAL SCROLL GUARD
+   ========================================== */
+
+@media (max-width: 700px) and (display-mode: standalone) {
+  html.entry-scroll-locked,
+  html.entry-scroll-locked body {
+    overflow: hidden !important;
+    overscroll-behavior: none;
+  }
+
+  /* Lock only the background scroll container */
+  html.entry-scroll-locked .main {
+    overflow: hidden !important;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  /* Prevent scroll chaining behind the form */
+  html.entry-scroll-locked #overlay {
+    overscroll-behavior: none;
+  }
+
+  /* Keep the entry form independently scrollable */
+  html.entry-scroll-locked #overlay .modal {
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+
+  /* Do not expose navigation during editing */
+  html.entry-scroll-locked .mobile-bottom-nav {
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
