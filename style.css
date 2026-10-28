@@ -1841,3 +1841,27 @@ body.dark .allocation-status.approaching,
 body.dark .allocation-inline-alert.approaching {
   color: #f0bb64;
 }
+
+/* ==========================================
+   PENVORIA - iPHONE BOTTOM NAV STABILITY
+   ========================================== */
+
+@media (max-width: 700px) and (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+}
