@@ -2478,5 +2478,306 @@ document
   };
 })();
 
+/* ==========================================
+   PENVORIA - SEARCH & FILTER EXPENSES
+   Improvement 6 - append to app.js
+   ========================================== */
+
+(function installExpenseFilters() {
+  if (window.__penvoriaExpenseFiltersInstalled) return;
+  window.__penvoriaExpenseFiltersInstalled = true;
+
+  const originalRender = render;
+
+  const filters = {
+    search: "",
+    category: "",
+    from: "",
+    to: "",
+  };
+
+  let filterMonth = month;
+
+  function clearFilterValues() {
+    filters.search = "";
+    filters.category = "";
+    filters.from = "";
+    filters.to = "";
+  }
+
+  function getMatchingExpenses() {
+    const query = filters.search.trim().toLocaleLowerCase();
+
+    return data().expenses.filter((expense) => {
+      const category = categoryName(expense, "expenses");
+
+      const title = String(expense.title || "");
+      const date = String(expense.date || "");
+
+      const matchesText =
+        !query || `${title} ${category}`.toLocaleLowerCase().includes(query);
+
+      return (
+        matchesText &&
+        (!filters.category || category === filters.category) &&
+        (!filters.from || date >= filters.from) &&
+        (!filters.to || date <= filters.to)
+      );
+    });
+  }
+
+  function refreshExpenseResults() {
+    const results = document.getElementById("pef-results");
+
+    const summary = document.getElementById("pef-summary");
+
+    if (!results || !summary || view !== "spending") {
+      return;
+    }
+
+    const all = data().expenses;
+    const matched = getMatchingExpenses();
+
+    results.innerHTML = matched.length
+      ? entryTable(matched, "expenses")
+      : `
+        <div class="empty">
+          <strong>
+            ${all.length ? "No matching expenses" : "No expenses yet"}
+          </strong>
+
+          ${
+            all.length
+              ? "Try changing your search or filters."
+              : "Add your first expense to get started."
+          }
+        </div>
+      `;
+
+    summary.textContent =
+      `Showing ${matched.length} of ${all.length} expenses · ` +
+      `Filtered total: ${money(total(matched))}`;
+  }
+
+  function mountExpenseFilters() {
+    // Reset filters when selecting another month.
+    if (month !== filterMonth) {
+      filterMonth = month;
+      clearFilterValues();
+    }
+
+    if (view !== "spending") return;
+
+    // Find the existing All Expenses panel.
+    const expensePanel = [...document.querySelectorAll("#app .panel")].find(
+      (panel) =>
+        panel.querySelector(".panel-head h2")?.textContent.trim() ===
+        "All expenses",
+    );
+
+    if (!expensePanel) return;
+
+    const heading = expensePanel.querySelector(".panel-head");
+
+    const originalTable = heading?.nextElementSibling;
+
+    if (
+      !heading ||
+      !originalTable ||
+      !originalTable.matches(".table-wrap, .empty")
+    ) {
+      return;
+    }
+
+    // Build categories from actual expense records.
+    const categories = [
+      ...new Set(data().expenses.map((item) => categoryName(item, "expenses"))),
+    ].sort((a, b) => a.localeCompare(b));
+
+    if (filters.category && !categories.includes(filters.category)) {
+      filters.category = "";
+    }
+
+    const monthParts = month.split("-").map(Number);
+
+    const lastDay = new Date(monthParts[0], monthParts[1], 0).getDate();
+
+    const minDate = `${month}-01`;
+
+    const maxDate = `${month}-${String(lastDay).padStart(2, "0")}`;
+
+    const controls = document.createElement("div");
+
+    controls.id = "pef-controls";
+
+    controls.innerHTML = `
+      <div class="pef-grid">
+
+        <label class="pef-field pef-search">
+          <span>Search expenses</span>
+
+          <input
+            id="pef-search"
+            type="search"
+            placeholder="Description or category"
+            autocomplete="off"
+            value="${escapeHtml(filters.search)}"
+          >
+        </label>
+
+        <label class="pef-field pef-category">
+          <span>Category</span>
+
+          <select id="pef-category">
+            <option value="">
+              All categories
+            </option>
+
+            ${categories
+              .map(
+                (category) => `
+              <option
+                value="${escapeHtml(category)}"
+                ${category === filters.category ? "selected" : ""}
+              >
+                ${escapeHtml(category)}
+              </option>
+            `,
+              )
+              .join("")}
+          </select>
+        </label>
+
+        <label class="pef-field">
+          <span>From date</span>
+
+          <input
+            id="pef-from"
+            type="date"
+            min="${minDate}"
+            max="${maxDate}"
+            value="${escapeHtml(filters.from)}"
+          >
+        </label>
+
+        <label class="pef-field">
+          <span>To date</span>
+
+          <input
+            id="pef-to"
+            type="date"
+            min="${minDate}"
+            max="${maxDate}"
+            value="${escapeHtml(filters.to)}"
+          >
+        </label>
+
+      </div>
+
+      <div class="pef-footer">
+        <span
+          id="pef-summary"
+          role="status"
+          aria-live="polite"
+        ></span>
+
+        <button
+          id="pef-clear"
+          type="button"
+          class="secondary"
+        >
+          Clear filters
+        </button>
+      </div>
+    `;
+
+    // Insert the controls above the transactions.
+    heading.after(controls);
+
+    const results = document.createElement("div");
+
+    results.id = "pef-results";
+
+    controls.after(results);
+
+    // Replace only the visual table.
+    // The original financial data remains unchanged.
+    originalTable.remove();
+
+    refreshExpenseResults();
+  }
+
+  // Preserve the existing page rendering.
+  // Filtering only changes the displayed expense list.
+  render = function (...args) {
+    const result = originalRender(...args);
+
+    mountExpenseFilters();
+
+    return result;
+  };
+
+  // Search and date input events.
+  document.getElementById("app").addEventListener("input", (event) => {
+    if (!event.target.closest("#pef-controls")) {
+      return;
+    }
+
+    if (event.target.id === "pef-search") {
+      filters.search = event.target.value;
+    }
+
+    if (event.target.id === "pef-from") {
+      filters.from = event.target.value;
+    }
+
+    if (event.target.id === "pef-to") {
+      filters.to = event.target.value;
+    }
+
+    refreshExpenseResults();
+  });
+
+  // Category dropdown and date selection.
+  document.getElementById("app").addEventListener("change", (event) => {
+    if (!event.target.closest("#pef-controls")) {
+      return;
+    }
+
+    if (event.target.id === "pef-category") {
+      filters.category = event.target.value;
+    }
+
+    if (event.target.id === "pef-from") {
+      filters.from = event.target.value;
+    }
+
+    if (event.target.id === "pef-to") {
+      filters.to = event.target.value;
+    }
+
+    refreshExpenseResults();
+  });
+
+  // Clear all filters without reloading the page.
+  document.getElementById("app").addEventListener("click", (event) => {
+    const clearButton = event.target.closest("#pef-clear");
+
+    if (!clearButton) return;
+
+    clearFilterValues();
+
+    for (const id of ["pef-search", "pef-category", "pef-from", "pef-to"]) {
+      const control = document.getElementById(id);
+
+      if (control) {
+        control.value = "";
+      }
+    }
+
+    refreshExpenseResults();
+  });
+})();
+
 // cloud.js calls render() after
 // authentication and account loading.

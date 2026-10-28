@@ -2139,6 +2139,155 @@ body.authenticated .auth-screen {
   background: var(--accent);
 }
 
+/* ==========================================
+   PENVORIA - EXPENSE SEARCH & FILTERS
+   Improvement 6
+   ========================================== */
+
+#pef-controls {
+  margin: 18px 0;
+  padding: 17px;
+
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  background: var(--bg);
+}
+
+/* Desktop filter layout */
+.pef-grid {
+  display: grid;
+
+  grid-template-columns:
+    minmax(180px, 1.5fr)
+    minmax(140px, 1fr)
+    minmax(130px, 1fr)
+    minmax(130px, 1fr);
+
+  gap: 12px;
+  align-items: end;
+}
+
+.pef-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+
+  min-width: 0;
+}
+
+.pef-field span {
+  color: var(--muted);
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pef-field input,
+.pef-field select {
+  display: block;
+
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 44px;
+
+  padding: 10px 12px;
+
+  border: 1px solid var(--border);
+  border-radius: 10px;
+
+  background: var(--panel);
+  color: var(--text);
+
+  font-size: 14px;
+  line-height: 1.4;
+
+  box-sizing: border-box;
+}
+
+.pef-field input:focus,
+.pef-field select:focus {
+  border-color: var(--accent);
+}
+
+.pef-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+
+  gap: 10px;
+  margin-top: 14px;
+}
+
+#pef-summary {
+  color: var(--muted);
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#pef-clear {
+  min-height: 38px;
+  padding: 8px 13px;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#pef-results {
+  min-width: 0;
+}
+
+/* Tablet layout */
+@media (max-width: 1100px) {
+  .pef-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* iPhone layout */
+@media (max-width: 700px) {
+  #pef-controls {
+    padding: 13px;
+    margin: 14px 0;
+  }
+
+  .pef-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 12px;
+  }
+
+  .pef-search,
+  .pef-category {
+    grid-column: 1 / -1;
+  }
+
+  .pef-field input,
+  .pef-field select {
+    min-height: 46px;
+
+    /* Prevent automatic iPhone input zoom */
+    font-size: 16px !important;
+  }
+
+  .pef-footer {
+    align-items: flex-start;
+  }
+
+  #pef-summary {
+    width: 100%;
+    line-height: 1.6;
+  }
+
+  #pef-clear {
+    width: 100%;
+    min-height: 42px;
+  }
+}
+
 /* iPhone layout */
 
 @media (max-width: 700px) {
