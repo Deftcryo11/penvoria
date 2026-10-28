@@ -1372,7 +1372,8 @@ body.authenticated .auth-screen {
   }
 
   .cloud-toolbar {
-    justify-content: flex-start;
+    align-items: center;
+    justify-content: space-between;
     gap: 10px;
   }
 
@@ -1771,11 +1772,13 @@ body.authenticated .auth-screen {
     font-weight: 700;
   }
 
-  /* =========================================
+}
+
+/* =========================================
    MOBILE NAVIGATION VISIBILITY
    ========================================= */
 
-  @media (max-width: 700px) {
+@media (max-width: 700px) {
     /* Hide navigation only while the modal is visible */
     body:has(#overlay:not(.hidden)) .mobile-bottom-nav {
       visibility: hidden;
@@ -1787,7 +1790,6 @@ body.authenticated .auth-screen {
       opacity: 1;
       pointer-events: auto;
     }
-  }
 }
 
 /* ==========================================
