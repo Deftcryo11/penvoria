@@ -1427,7 +1427,20 @@ function regularSection(type, record, values) {
 // ==========================================
 
 function history() {
-  const months = Object.keys(state.months).sort().reverse();
+  const months = Object.keys(state.months)
+    .filter((key) => {
+      const record = state.months[key];
+
+      return (
+        !!window.penvoriaCloud?.versions?.[key] ||
+        !!window.penvoriaCloud?.drafts?.[key] ||
+        ["income", "needs", "expenses", "savings"].some(
+          (type) => Array.isArray(record?.[type]) && record[type].length > 0,
+        )
+      );
+    })
+    .sort()
+    .reverse();
 
   return `
     <section class="panel">
@@ -1486,7 +1499,16 @@ const viewNames = {
 };
 
 function render() {
-  const record = data();
+  const record =
+    view === "history"
+      ? state.months[month] || {
+          income: [],
+          needs: [],
+          expenses: [],
+          savings: [],
+        }
+      : data();
+
   const values = totals(record);
 
   $("#monthPicker").value = month;
@@ -1605,6 +1627,8 @@ function categoryField(record, type) {
   `;
 }
 
+let scrollBeforeEntryModal = null;
+
 // ==========================================
 // ADD / EDIT MODAL
 // ==========================================
@@ -1713,6 +1737,16 @@ function openModal(type, id = null) {
       input.inputMode = "decimal";
     });
 
+  const standaloneMobile = window.matchMedia(
+    "(max-width: 700px) and (display-mode: standalone)",
+  ).matches;
+
+  // Remember where the user was before opening the form.
+  if (standaloneMobile) {
+    const main = document.querySelector(".main");
+    scrollBeforeEntryModal = main?.scrollTop ?? 0;
+  }
+
   $("#overlay").classList.remove("hidden");
 
   document.body.classList.add("modal-open");
@@ -1743,17 +1777,38 @@ function updateSpendingType() {
 function closeModal() {
   const overlay = $("#overlay");
 
+  if (overlay.classList.contains("hidden")) {
+    return;
+  }
+
+  const previousScroll = scrollBeforeEntryModal;
+  scrollBeforeEntryModal = null;
+
+  // Dismiss the iPhone keyboard first.
   if (document.activeElement && overlay.contains(document.activeElement)) {
     document.activeElement.blur();
   }
 
+  // Hide the form.
   overlay.classList.add("hidden");
 
+  // Unlock background scrolling.
   document.body.classList.remove("modal-open");
 
   updateMobileModalViewport();
 
   editing = null;
+
+  // Restore the original page position.
+  if (previousScroll !== null) {
+    requestAnimationFrame(() => {
+      const main = document.querySelector(".main");
+
+      if (main) {
+        main.scrollTop = previousScroll;
+      }
+    });
+  }
 }
 
 // ==========================================
@@ -2002,10 +2057,21 @@ document.querySelectorAll("[data-mobile-view]").forEach((button) => {
 
     render();
 
-    window.scrollTo({
-      top: 0,
-      behavior: "instant",
-    });
+    const standaloneMobile = window.matchMedia(
+      "(max-width: 700px) and (display-mode: standalone)",
+    ).matches;
+
+    if (standaloneMobile) {
+      document.querySelector(".main")?.scrollTo({
+        top: 0,
+        behavior: "instant",
+      });
+    } else {
+      window.scrollTo({
+        top: 0,
+        behavior: "instant",
+      });
+    }
   });
 });
 
