@@ -2002,10 +2002,21 @@ document.querySelectorAll("[data-mobile-view]").forEach((button) => {
 
     render();
 
-    window.scrollTo({
-      top: 0,
-      behavior: "instant",
-    });
+    const standaloneMobile = window.matchMedia(
+      "(max-width: 700px) and (display-mode: standalone)",
+    ).matches;
+
+    if (standaloneMobile) {
+      document.querySelector(".main")?.scrollTo({
+        top: 0,
+        behavior: "instant",
+      });
+    } else {
+      window.scrollTo({
+        top: 0,
+        behavior: "instant",
+      });
+    }
   });
 });
 
