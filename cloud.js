@@ -14,6 +14,7 @@ const cloud = {
   pending: Promise.resolve(),
   syncing: false,
   failed: false,
+  recoveryError: false,
   versions: {},
   drafts: {},
   conflicts: new Set(),
@@ -25,6 +26,108 @@ window.penvoriaCloud = cloud;
 
 let authMode = "login";
 let loadingAccount = false;
+let authEpoch = 0;
+
+/* ==========================================
+   ONE ACTIVE EDITING TAB PER ACCOUNT
+   ========================================== */
+
+let editLockUser = null;
+let editLockRelease = null;
+
+function releaseAccountEditLock() {
+  const release = editLockRelease;
+
+  editLockRelease = null;
+  editLockUser = null;
+
+  if (release) release();
+}
+
+async function acquireAccountEditLock(userId) {
+  if (
+    editLockUser === userId &&
+    editLockRelease
+  ) {
+    return true;
+  }
+
+  if (!navigator.locks?.request) {
+    throw new Error(
+      "Single-tab protection requires HTTPS " +
+      "or localhost and Web Locks support."
+    );
+  }
+
+  let resolveAcquired;
+  let reported = false;
+
+  const acquired = new Promise((resolve) => {
+    resolveAcquired = (success) => {
+      if (!reported) {
+        reported = true;
+        resolve(success);
+      }
+    };
+  });
+
+  // Hold the lock until logout or tab closure.
+  // Do not await its entire lifetime.
+  const lifetime = navigator.locks.request(
+    "penvoria-editor:" + userId,
+    { ifAvailable: true },
+
+    async (lock) => {
+      if (!lock) {
+        resolveAcquired(false);
+        return;
+      }
+
+      await new Promise((release) => {
+        editLockUser = userId;
+        editLockRelease = release;
+        resolveAcquired(true);
+      });
+    }
+  );
+
+  void lifetime.catch((error) => {
+    console.error(
+      "Penvoria editing lock failed:",
+      error
+    );
+
+    resolveAcquired(false);
+
+    if (editLockUser === userId) {
+      // Fail closed if the lock is lost.
+      editLockUser = null;
+      editLockRelease = null;
+      cloud.ready = false;
+
+      document.body.classList.remove(
+        "authenticated"
+      );
+
+      document.body.classList.add(
+        "auth-locked"
+      );
+
+      authScreen.hidden = false;
+      authForm.hidden = true;
+      hideStartupScreen();
+
+      setAuthMessage(
+        "Editing lock lost. Preserve this tab " +
+        "and export a backup before restarting.",
+        true
+      );
+    }
+  });
+
+  return acquired;
+}
+
 
 const authScreen = document.querySelector("#authScreen");
 const startupScreen = document.querySelector("#startupScreen");
@@ -66,6 +169,7 @@ function clearCloudMemory() {
   cloud.ready = false;
   cloud.user = null;
   cloud.failed = false;
+  cloud.recoveryError = false;
 
   cloud.versions = {};
   cloud.drafts = {};
@@ -74,6 +178,8 @@ function clearCloudMemory() {
 }
 
 function showLogin() {
+  authEpoch += 1;
+  releaseAccountEditLock();
   clearCloudMemory();
 
   // Do not expose another account's budgets.
@@ -84,6 +190,7 @@ function showLogin() {
   document.body.classList.add("auth-locked");
 
   authScreen.hidden = false;
+  authForm.hidden = false;
 
   setAuthMessage("");
   hideStartupScreen();
@@ -137,6 +244,9 @@ function draftStorageKey(userId) {
 function storeDrafts() {
   if (!cloud.user) return false;
 
+  // Do not overwrite an unreadable recovery record.
+  if (cloud.recoveryError) return false;
+
   try {
     const key = draftStorageKey(cloud.user.id);
 
@@ -158,6 +268,7 @@ function storeDrafts() {
 }
 
 function restoreDrafts(userId, serverMonths) {
+  cloud.recoveryError = false;
   cloud.drafts = {};
   cloud.conflicts.clear();
 
@@ -194,7 +305,8 @@ function restoreDrafts(userId, serverMonths) {
   } catch (error) {
     console.error("Could not restore pending changes:", error);
 
-    setCloudStatus("Could not read local pending changes", true);
+    cloud.recoveryError = true;
+    setCloudStatus("Local recovery error ? do not clear browser data", true);
   }
 }
 
@@ -204,6 +316,14 @@ function restoreDrafts(userId, serverMonths) {
 
 function updateSyncStatus() {
   const count = Object.keys(cloud.drafts).length;
+
+  if (cloud.recoveryError) {
+    setCloudStatus(
+      "Local recovery error ? do not clear browser data",
+      true
+    );
+    return;
+  }
 
   if (cloud.conflicts.size) {
     setCloudStatus(
@@ -308,6 +428,11 @@ function scheduleRetry() {
    ========================================== */
 
 function flushCloudQueue() {
+  if (cloud.recoveryError) {
+    updateSyncStatus();
+    return cloud.pending;
+  }
+
   if (!cloud.ready || !cloud.user || cloud.syncing) {
     return cloud.pending;
   }
@@ -383,6 +508,17 @@ function flushCloudQueue() {
     } finally {
       cloud.syncing = false;
       updateSyncStatus();
+
+      if (
+        cloud.ready &&
+        cloud.user?.id !== userId &&
+        navigator.onLine &&
+        Object.keys(cloud.drafts).some(
+          (key) => !cloud.conflicts.has(key)
+        )
+      ) {
+        void flushCloudQueue();
+      }
     }
   })();
 
@@ -432,6 +568,7 @@ cloud.queueSave = function (monthKey, record) {
 async function loadAccount() {
   if (loadingAccount) return;
 
+  const thisLoadEpoch = authEpoch;
   loadingAccount = true;
   cloud.ready = false;
 
@@ -442,6 +579,7 @@ async function loadAccount() {
       await cloud.client.auth.getUser();
 
     if (userError) throw userError;
+    if (thisLoadEpoch !== authEpoch) return;
 
     if (!userData.user) {
       showLogin();
@@ -449,6 +587,56 @@ async function loadAccount() {
     }
 
     const account = userData.user;
+
+    // Protect shared pending financial records.
+    const hasEditLock =
+      await acquireAccountEditLock(account.id);
+
+    if (thisLoadEpoch !== authEpoch) {
+      if (hasEditLock) releaseAccountEditLock();
+      return;
+    }
+
+    if (!hasEditLock) {
+      cloud.ready = false;
+      cloud.user = null;
+      state = { months: {} };
+
+      document.body.classList.remove(
+        "authenticated",
+        "auth-pending"
+      );
+
+      document.body.classList.add(
+        "auth-locked"
+      );
+
+      authScreen.hidden = false;
+      authForm.hidden = true;
+
+      document.querySelector(
+        "#authHeading"
+      ).textContent =
+        "Penvoria is open in another tab";
+
+      document.querySelector(
+        "#authSubtitle"
+      ).textContent =
+        "Close the other Penvoria tab or window, then reload this one.";
+
+      setAuthMessage(
+        "Only one tab can edit this account at a time.",
+        true
+      );
+
+      setCloudStatus(
+        "Another tab is editing ? this tab is locked",
+        true
+      );
+
+      hideStartupScreen();
+      return;
+    }
 
     cloud.user = account;
 
@@ -459,6 +647,7 @@ async function loadAccount() {
       .order("month", { ascending: true });
 
     if (error) throw error;
+    if (thisLoadEpoch !== authEpoch) return;
 
     const months = {};
 
@@ -495,6 +684,7 @@ async function loadAccount() {
     // Retry any recovered unsynced months.
     void flushCloudQueue();
   } catch (error) {
+    releaseAccountEditLock();
     console.error("Cloud loading failed:", error);
 
     cloud.ready = false;
@@ -698,6 +888,34 @@ async function initializeCloud() {
     if (!cloud.client?.auth) {
       throw new Error("Supabase authentication failed.");
     }
+
+    cloud.client.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        const hadDrafts =
+          Object.keys(cloud.drafts).length > 0;
+
+        showLogin();
+
+        if (hadDrafts) {
+          setAuthMessage(
+            "Signed out. Sign back in to recover pending changes saved on this device.",
+            true
+          );
+        }
+      } else if (
+        event === "SIGNED_IN" &&
+        cloud.user?.id &&
+        session?.user?.id &&
+        cloud.user.id !== session.user.id
+      ) {
+        showLogin();
+
+        setAuthMessage(
+          "Account changed in another tab. Refresh to load its budgets.",
+          true
+        );
+      }
+    });
 
     const { data, error } = await cloud.client.auth.getSession();
 

@@ -27,6 +27,7 @@
 
     <!-- Stylesheet -->
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="features.css" />
 
     <!-- Supabase JavaScript -->
     <script
@@ -37,6 +38,7 @@
     <!-- Application scripts -->
     <script src="config.js" defer></script>
     <script src="app.js" defer></script>
+    <script src="features.js" defer></script>
     <script src="cloud.js" defer></script>
 
     <!-- PDF generation libraries -->
@@ -117,6 +119,20 @@
               required
             />
           </div>
+
+          <p class="auth-switch" style="text-align: right; margin: 0 0 14px">
+            <a
+              href="reset-password.html"
+              style="
+                color: var(--accent);
+                font-size: 13px;
+                font-weight: 700;
+                text-decoration: none;
+              "
+            >
+              Forgot password?
+            </a>
+          </p>
 
           <p
             id="authMessage"
