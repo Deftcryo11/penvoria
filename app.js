@@ -1427,7 +1427,20 @@ function regularSection(type, record, values) {
 // ==========================================
 
 function history() {
-  const months = Object.keys(state.months).sort().reverse();
+  const months = Object.keys(state.months)
+    .filter((key) => {
+      const record = state.months[key];
+
+      return (
+        !!window.penvoriaCloud?.versions?.[key] ||
+        !!window.penvoriaCloud?.drafts?.[key] ||
+        ["income", "needs", "expenses", "savings"].some(
+          (type) => Array.isArray(record?.[type]) && record[type].length > 0,
+        )
+      );
+    })
+    .sort()
+    .reverse();
 
   return `
     <section class="panel">
@@ -1486,7 +1499,16 @@ const viewNames = {
 };
 
 function render() {
-  const record = data();
+  const record =
+    view === "history"
+      ? state.months[month] || {
+          income: [],
+          needs: [],
+          expenses: [],
+          savings: [],
+        }
+      : data();
+
   const values = totals(record);
 
   $("#monthPicker").value = month;

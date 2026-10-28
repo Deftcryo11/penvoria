@@ -1993,3 +1993,14 @@ body.dark .allocation-inline-alert.approaching {
     pointer-events: none !important;
   }
 }
+
+/* Five equally sized iPhone navigation tabs */
+@media (max-width: 700px) {
+  .mobile-bottom-nav {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .mobile-nav-item {
+    font-size: 9px;
+  }
+}
