@@ -1,0 +1,95 @@
+/* Entry form calendar: matches Penvoria light/dark theme. */
+#formFields .pd-trigger {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 46px;
+  padding: 11px 13px;
+  text-align: left;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.pd-trigger > svg:first-child { color: var(--accent); flex: none; }
+.pd-trigger .pd-date-text { min-width: 0; flex: 1; }
+.pd-trigger .pd-chevron { flex: none; color: var(--muted); }
+.pd-trigger[aria-expanded="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent2);
+}
+.pd-trigger[aria-expanded="true"] .pd-chevron { transform: rotate(180deg); }
+
+/* Calendar stays inside the modal instead of overflowing the iPhone viewport. */
+#formFields .pd-panel {
+  width: 100%;
+  min-width: 0;
+  padding: 14px;
+  margin: 5px 0 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--text);
+  background: var(--panel);
+  box-shadow: 0 10px 28px #102a3a14;
+}
+#formFields .pd-panel[hidden] { display: none !important; }
+.pd-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  background: var(--accent2);
+  border-radius: 10px;
+  color: var(--accent);
+}
+.pd-heading-icon { font-size: 14px; }
+.pd-month { font-weight: 800; flex: 1; font-size: 14px; }
+.pd-month-label { font-size: 10px; font-weight: 700; opacity: .85; }
+
+.pd-weekdays, .pd-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+}
+.pd-weekdays { margin: 12px 0 5px; text-align: center; }
+.pd-weekdays span { font-size: 11px; color: var(--muted); font-weight: 700; padding: 5px 0; }
+#formFields .pd-day {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1;
+  touch-action: manipulation;
+}
+#formFields .pd-day:hover { background: var(--accent2); color: var(--accent); }
+#formFields .pd-day.is-today:not(.is-selected) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+#formFields .pd-day.is-selected,
+#formFields .pd-day.is-selected:hover {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+body.dark #formFields .pd-day.is-selected,
+html.dark #formFields .pd-day.is-selected { color: #102b28; }
+.pd-hint { color: var(--muted); font-size: 11px; line-height: 1.4; margin: 10px 4px 0; }
+@media (max-width: 700px) {
+  #formFields .pd-trigger { min-height: 46px; font-size: 16px; }
+  #formFields .pd-panel { padding: 11px; }
+  #formFields .pd-day { min-height: 41px; font-size: 14px; }
+  .pd-month-label { display: none; }
+}
