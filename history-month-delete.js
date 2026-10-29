@@ -14,7 +14,6 @@
   let selectedKey = null;
   let selectedUser = null;
   let localSnapshot = null;
-  let backupStarted = false;
   let busy = false;
 
   /* ======================================
@@ -294,7 +293,6 @@
         downloadViaLink(blob, filename);
       }
 
-      backupStarted = true;
       checkbox.disabled = false;
 
       status.textContent =
@@ -426,7 +424,7 @@
 
       alert(
         `${monthLabel(key)} was deleted. ` +
-          "Keep your JSON backup for your records.",
+          "No backup was required; this cannot be undone in Penvoria.",
       );
     } catch (error) {
       status.textContent = error.message || String(error);
