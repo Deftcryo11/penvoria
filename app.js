@@ -1730,6 +1730,9 @@ function openModal(type, id = null) {
 
   $("#formFields").innerHTML = html;
 
+  // Enhance the native date input with the themed calendar.
+  window.PenvoriaDatePicker?.mount($("#formFields"));
+
   // Decimal keyboard on phones.
   $("#formFields")
     .querySelectorAll('input[type="number"]')
