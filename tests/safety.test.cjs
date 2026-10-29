@@ -6,3 +6,5 @@ test("private backup no longer tracked in current tree",()=>{assert.match(get(".
 test("monthly writes and deletes check revisions",()=>{assert.match(get("cloud.js"),/\.eq\("revision", draft\.baseRevision\)/);assert.match(get("history-month-delete.js"),/\.eq\("revision", expectedRevision\)/);});
 test("monthly sync protects unsaved drafts",()=>{const s=get("cloud-refresh.js");assert.match(s,/cloud\.syncing/);assert.match(s,/cloud\.conflicts\.size/);assert.match(s,/Object\.keys\(cloud\.drafts\)\.length/);});
 test("recurring synchronization protects forms",()=>{const s=get("recurring.js");assert.match(s,/syncRecurringTemplates/);assert.match(s,/selectedId !== "closed"/);});
+
+test("entry calendar preserves form date and month constraints",()=>{const js=get("entry-date-picker.js");assert.match(js,/name="date"/);assert.match(js,/input\.type = "hidden"/);assert.match(js,/input\.value = value/);assert.match(js,/dispatchEvent\(new Event\("change"/);assert.match(js,/dateInMonth\(value, monthKey, lastDay\)/);const page=get("index.html");assert.match(page,/entry-date-picker\.js/);assert.match(page,/entry-date-picker\.css/);});
