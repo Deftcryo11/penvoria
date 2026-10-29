@@ -7,7 +7,7 @@ const extract = (start,end) => {
   return s.slice(a,b);
 };
 const code=[extract("const CATEGORIES =","function load()"),extract("function categoryOf(","// DISPLAY HELPERS"),extract("function previousMonthKey(","function copyPreviousMonthPlanning()"),"globalThis.finance={totals,previousMonthKey,moveEntryDateToMonth};"].join("\n");
-const {finance}=vm.runInNewContext(code,{});
+const finance=vm.runInNewContext(code,{});
 const blank=()=>({income:[],needs:[],expenses:[],savings:[]});
 test("empty month is zero",()=>{const v=finance.totals(blank());assert.equal(v.cashRemainder,0);assert.equal(v.spendingBudget,0);});
 test("plans, actual cash and overspending are distinct",()=>{
