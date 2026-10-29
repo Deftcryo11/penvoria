@@ -1512,6 +1512,7 @@ function render() {
   const values = totals(record);
 
   $("#monthPicker").value = month;
+  window.PenvoriaBudgetMonthPicker?.sync(month);
   $("#pageTitle").textContent = viewNames[view];
   $("#crumb").textContent = viewNames[view];
 
@@ -1729,6 +1730,9 @@ function openModal(type, id = null) {
   }
 
   $("#formFields").innerHTML = html;
+
+  // Enhance the native date input with the themed calendar.
+  window.PenvoriaDatePicker?.mount($("#formFields"));
 
   // Decimal keyboard on phones.
   $("#formFields")
