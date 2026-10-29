@@ -1,0 +1,13 @@
+# Keep private financial data out of the public repository.
+penvoria-backup-*.json
+penvoria-????-??-before-delete.json
+*financial*backup*.json
+backups/
+exports/
+*.private.json
+.env
+.env.*
+!.env.example
+node_modules/
+.DS_Store
+Thumbs.db
