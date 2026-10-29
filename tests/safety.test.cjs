@@ -8,3 +8,19 @@ test("monthly sync protects unsaved drafts",()=>{const s=get("cloud-refresh.js")
 test("recurring synchronization protects forms",()=>{const s=get("recurring.js");assert.match(s,/syncRecurringTemplates/);assert.match(s,/selectedId !== "closed"/);});
 
 test("entry calendar preserves form date and month constraints",()=>{const js=get("entry-date-picker.js");assert.match(js,/name="date"/);assert.match(js,/input\.type = "hidden"/);assert.match(js,/input\.value = value/);assert.match(js,/dispatchEvent\(new Event\("change"/);assert.match(js,/dateInMonth\(value, monthKey, lastDay\)/);const page=get("index.html");assert.match(page,/entry-date-picker\.js/);assert.match(page,/entry-date-picker\.css/);});
+
+test("themed budget month selector retains the existing app month-change handler",()=>{
+  const js=get("budget-month-picker.js");
+  const app=get("app.js");
+  const page=get("index.html");
+  const worker=get("sw.js");
+  assert.match(js,/input\.dispatchEvent\(new Event\("change"/);
+  assert.match(js,/isValidMonth\(key\)/);
+  assert.match(js,/input\.type = "hidden"/);
+  assert.match(js,/displayedYear \+ Number\(yearNav\.dataset\.bmNav\)/);
+  assert.match(app,/window\.PenvoriaBudgetMonthPicker\?\.sync\(month\)/);
+  assert.match(app,/#monthPicker"\)\.onchange/);
+  assert.match(page,/budget-month-picker\.js/);
+  assert.match(page,/budget-month-picker\.css/);
+  assert.match(worker,/"budget-month-picker\.js"/);
+});
