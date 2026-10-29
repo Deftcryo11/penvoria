@@ -1512,6 +1512,7 @@ function render() {
   const values = totals(record);
 
   $("#monthPicker").value = month;
+  window.PenvoriaBudgetMonthPicker?.sync(month);
   $("#pageTitle").textContent = viewNames[view];
   $("#crumb").textContent = viewNames[view];
 
