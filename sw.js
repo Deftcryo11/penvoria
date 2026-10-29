@@ -1,7 +1,7 @@
 "use strict";
 
 // Change this value for each future PWA release.
-const CACHE_NAME = "penvoria-shell-v1.3-02";
+const CACHE_NAME = "penvoria-shell-v1.3-03";
 const CACHE_PREFIX = "penvoria-shell-";
 
 const OFFLINE_URL = new URL("./offline.html", self.registration.scope).href;
@@ -32,6 +32,8 @@ const STATIC_FILES = new Set([
   "cloud-refresh.js",
   "entry-date-picker.js",
   "entry-date-picker.css",
+  "budget-month-picker.js",
+  "budget-month-picker.css",
 ]);
 
 self.addEventListener("install", (event) => {
