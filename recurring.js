@@ -27,6 +27,8 @@
   let selectedId = "closed";
   let ownerId = null;
   let generation = 0;
+  let recurringRefreshRunning = false;
+  let lastRecurringCheckAt = 0;
 
   const hasAccess = () =>
     window.penvoriaCloud?.ready && window.penvoriaCloud?.user?.id === ownerId;
@@ -1014,8 +1016,65 @@
     }
   });
 
+  // Pull changed templates without changing monthly financial records.
+  // Keep locally open editors and any mutation in progress untouched.
+  async function syncRecurringTemplates() {
+    if (!hasAccess() || !loaded || !navigator.onLine ||
+        document.hidden || busy || recurringRefreshRunning ||
+        selectedId !== "closed") return;
+
+    const accountId = ownerId;
+    const token = generation;
+    const snapshot = JSON.stringify(templates);
+    recurringRefreshRunning = true;
+    lastRecurringCheckAt = Date.now();
+
+    try {
+      const { data: rows, error } = await clientTable()
+        .select(
+          "id,user_id,entry_type,title," +
+          "category,custom_category,amount," +
+          "day_of_month,start_month,active"
+        )
+        .eq("user_id", accountId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+
+      // An account switch, manual load, form open, or local
+      // edit takes priority over the background response.
+      if (token !== generation || ownerId !== accountId ||
+          !hasAccess() || busy || selectedId !== "closed" ||
+          JSON.stringify(templates) !== snapshot) return;
+
+      const latest = rows || [];
+      if (JSON.stringify(latest) !== snapshot) {
+        templates = latest;
+        errorText = "";
+        if (view === "recurring") render();
+      }
+    } catch (error) {
+      console.warn("Penvoria recurring refresh failed:", error);
+    } finally {
+      recurringRefreshRunning = false;
+    }
+  }
+
+  function checkRecurringOnReturn() {
+    if (Date.now() - lastRecurringCheckAt >= 60000) {
+      void syncRecurringTemplates();
+    }
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) checkRecurringOnReturn();
+  });
+  window.addEventListener("focus", checkRecurringOnReturn);
+  window.addEventListener("online", checkRecurringOnReturn);
+  setInterval(checkRecurringOnReturn, 60000);
+
   window.PenvoriaRecurring = {
     loadForUser,
     reset,
+    syncRecurringTemplates,
   };
 })();
