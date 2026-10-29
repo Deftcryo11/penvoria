@@ -31,6 +31,7 @@
     <link rel="stylesheet" href="features.css" />
     <link rel="stylesheet" href="recurring.css" />
     <link rel="stylesheet" href="entry-date-picker.css" />
+    <link rel="stylesheet" href="budget-month-picker.css" />
 
     <!-- Supabase JavaScript -->
     <script
@@ -42,6 +43,7 @@
     <script src="config.js" defer></script>
     <script src="entry-date-picker.js" defer></script>
     <script src="app.js" defer></script>
+    <script src="budget-month-picker.js" defer></script>
     <script src="modal-scroll-lock.js" defer></script>
     <script src="features.js" defer></script>
     <script src="recurring.js" defer></script>
@@ -305,15 +307,15 @@
 
             <!-- Month and Add Entry -->
             <div class="heading-actions">
-              <label class="month-label">
-                Month
+              <div class="month-label">
+                <span class="bm-month-label-text">Month</span>
 
                 <input
                   id="monthPicker"
                   type="month"
                   aria-label="Selected month"
                 />
-              </label>
+              </div>
 
               <button class="primary" id="addBtn" type="button">
                 + Add entry
