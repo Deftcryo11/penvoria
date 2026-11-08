@@ -25,6 +25,7 @@
   let errorText = "";
   let busy = false;
   let selectedId = "closed";
+  let linkingId = null;
   let ownerId = null;
   let generation = 0;
   let recurringRefreshRunning = false;
@@ -41,6 +42,7 @@
     errorText = "";
     busy = false;
     selectedId = "closed";
+    linkingId = null;
 
     if (view === "recurring") {
       view = "dashboard";
@@ -106,7 +108,7 @@
       console.error("Penvoria recurring load error:", error);
     }
 
-    if (view === "recurring" && hasAccess()) {
+    if ((view === "recurring" || view === "dashboard") && hasAccess()) {
       render();
     }
   }
@@ -469,6 +471,123 @@
     `;
   }
 
+  function upcomingBillsHTML(compact) {
+  if (!loaded || !hasAccess() || !window.PenvoriaUpcomingBills) return "";
+  const helper = window.PenvoriaUpcomingBills;
+  const schedule = helper.getSchedule(templates, month, helper.localToday(), data().expenses);
+  const visible = compact ? schedule.bills.slice(0, 3) : schedule.bills;
+  const extra = schedule.count - visible.length;
+  function linkEditor(bill) {
+    if (compact || linkingId !== bill.id) return "";
+    const eligible = data().expenses.filter(x =>
+      x && x.id && !x.recurringTemplateId && String(x.date||"").startsWith(month+"-") &&
+      Number.isFinite(Number(x.amount)) && Number(x.amount)>0
+    );
+    return `
+      <div class="ub-linker">
+        <p>Select an expense already saved under Spending. This does not add another expense.</p>
+        ${eligible.length ? `
+          <label for="ub-link-expense">Existing expense</label>
+          <select id="ub-link-expense">
+            ${eligible.map(x=>`<option value="${safe(x.id)}">${safe(x.date)} · ${safe(x.title)} · ${money(x.amount)}</option>`).join("")}
+          </select>
+          <div class="ub-controls">
+            <button class="primary" type="button" data-bill-link-save="${safe(bill.id)}">Link expense</button>
+            <button class="secondary" type="button" data-bill-link-cancel>Cancel</button>
+          </div>
+        ` : `
+          <p>No available unlinked expenses in this month. You can record a payment instead.</p>
+          <button class="secondary" type="button" data-bill-link-cancel>Close</button>
+        `}
+      </div>
+    `;
+  }
+  function itemHTML(bill) {
+    const label = bill.status==="paid" ? "Paid" :
+      bill.status==="partial" ? (bill.timing==="date-passed" ? "Partial · past due" : "Partially paid") :
+      bill.status==="overdue" ? "Overdue" :
+      bill.status==="due-today" ? "Due today" : "Upcoming";
+    const payments = compact ? [] : helper.linkedPayments(data().expenses,bill.id,month);
+    return `
+      <li class="ub-item ${compact ? "" : "ub-item--full"}">
+        <div class="ub-item-main">
+          <div class="ub-item-text">
+            <strong>${safe(bill.title)}</strong>
+            <small>Due <time datetime="${safe(bill.dueDate)}">${safe(bill.dueDate)}</time></small>
+            <small>${money(bill.recorded)} recorded · ${money(bill.remaining)} remaining</small>
+          </div>
+          <div class="ub-item-meta">
+            <strong>${money(bill.amount)}</strong>
+            <span class="ub-status" data-timing="${safe(bill.status)}">${safe(label)}</span>
+          </div>
+        </div>
+        ${compact ? "" : `
+          <div class="ub-controls">
+            ${bill.status === "paid" ? "" : `
+              <button class="primary" type="button" data-bill-record="${safe(bill.id)}">Record payment</button>
+              <button class="secondary" type="button" data-bill-link-open="${safe(bill.id)}">Link existing expense</button>
+            `}
+          </div>
+          ${payments.length ? `
+            <ul class="ub-payment-list">
+              ${payments.map(x=>`
+                <li><span>${safe(x.title)} · ${money(x.amount)} · ${safe(x.date)}</span>
+                  <button class="mini-btn" type="button" data-bill-unlink="${safe(bill.id)}"
+                    data-expense-id="${safe(x.id)}">Unlink</button>
+                </li>`).join("")}
+            </ul>
+          ` : ""}
+          ${linkEditor(bill)}
+        `}
+      </li>
+    `;
+  }
+  return `
+    <section class="panel ub-panel" aria-label="Upcoming bills schedule">
+      <div class="ub-head">
+        <div>
+          <h2>Upcoming bills & payments</h2>
+          <p class="panel-sub">${schedule.count} bill(s) · ${money(schedule.total)} planned
+            · ${money(schedule.recorded)} recorded · ${money(schedule.remaining)} remaining</p>
+        </div>
+        ${compact ? '<button class="secondary" type="button" data-pr-open>View recurring bills</button>' : ""}
+      </div>
+      ${schedule.count ? `<ul class="ub-list">${visible.map(itemHTML).join("")}</ul>` :
+        '<p class="ub-empty">No active recurring bills scheduled for this month.</p>'}
+      ${extra > 0 ? `<p class="pr-note">+ ${extra} more bill(s) on Recurring.</p>` : ""}
+      <p class="pr-note ub-disclaimer">
+        Only linked Spending expenses count as payments.
+        Record payment creates an expense only after you save its form.
+        Link and Unlink never change expense amounts. Check cloud sync before switching devices.
+      </p>
+    </section>
+  `;
+}
+
+  function groupedTemplatesHTML() {
+  const groups = window.PenvoriaRecurringGroups?.groupRecurringTemplates(templates);
+  if (!groups) return "";
+  return [
+    '<div class="pr-groups" aria-label="Recurring template groups">',
+    ...groups.map((group) => `
+      <section class="pr-group" aria-labelledby="pr-group-${safe(group.key)}">
+        <div class="pr-group-heading">
+          <div>
+            <h3 id="pr-group-${safe(group.key)}">${safe(group.title)}</h3>
+            <p class="panel-sub">${safe(group.description)}</p>
+          </div>
+          <span class="pr-group-count">${group.items.length}
+            ${group.items.length === 1 ? "template" : "templates"}</span>
+        </div>
+        ${group.items.length
+          ? `<div class="pr-list">${group.items.map(rowHTML).join("")}</div>`
+          : `<p class="pr-group-empty">${safe(group.empty)}</p>`}
+      </section>
+    `),
+    '</div>',
+  ].join("");
+}
+
   function recurringHTML() {
     if (!hasAccess()) {
       return `
@@ -517,6 +636,8 @@
           </div>
         </div>
 
+        ${upcomingBillsHTML(false)}
+
         <p
           id="pr-error"
           class="pr-error"
@@ -544,24 +665,7 @@
               `
         }
 
-        ${
-          loaded
-            ? `
-              <div class="pr-list">
-                ${
-                  templates.length
-                    ? templates.map(rowHTML).join("")
-                    : `
-                      <div class="empty">
-                        No recurring templates yet.
-                        Create your first one.
-                      </div>
-                    `
-                }
-              </div>
-            `
-            : ""
-        }
+        ${loaded ? groupedTemplatesHTML() : ""}
 
         ${loaded && selectedId !== "closed" ? editorHTML() : ""}
       </section>
@@ -587,6 +691,8 @@
       if (typeField) {
         updateFields();
       }
+    } else if (view === "dashboard" && hasAccess()) {
+      root.insertAdjacentHTML("afterbegin", upcomingBillsHTML(true));
     } else if (view === "planning") {
       root.insertAdjacentHTML(
         "afterbegin",
@@ -964,6 +1070,79 @@
     render();
   }
 
+  function canTrackPayment() {
+  const c = window.penvoriaCloud;
+  return !!(loaded && hasAccess() && !busy && navigator.onLine &&
+    !c.recoveryError && !c.conflicts?.size && !c.drafts?.[month]);
+}
+
+  function paymentBill(id) {
+  if (!canTrackPayment()) return null;
+  const api=window.PenvoriaUpcomingBills;
+  if (!api) return null;
+  return api.getSchedule(templates,month,api.localToday(),data().expenses)
+    .bills.find(b=>b.id===id) || null;
+}
+
+  function canRecordPayment(id) {
+  const b=paymentBill(id);
+  return !!(b && b.status!=="paid");
+}
+
+  function paymentBlocked() {
+  setError("Wait for 'All changes saved' and a working connection, or resolve any sync conflict, before tracking bill payments.");
+}
+
+  function recordBillPayment(id) {
+  const b=paymentBill(id);
+  if (!b || b.status==="paid") {paymentBlocked();return;}
+  const t=templates.find(x=>x.id===id);
+  if (!t) return;
+  const today=window.PenvoriaUpcomingBills.localToday();
+  const date=today.startsWith(month+"-")?today:b.dueDate;
+  linkingId=null;
+  openModal("expenses",null,{bill:{
+    id:t.id,title:t.title,category:t.category,customCategory:t.custom_category||"",
+    amount:b.remaining,date
+  }});
+}
+
+  function beginLink(id) {
+  if (!canRecordPayment(id)) {paymentBlocked();return;}
+  linkingId=id;
+  selectedId="closed";
+  render();
+}
+
+  function linkExistingExpense(id) {
+  const b=paymentBill(id);
+  if (!b || b.status==="paid" || linkingId!==id) {paymentBlocked();return;}
+  const picked=root.querySelector("#ub-link-expense")?.value;
+  const expense=data().expenses.find(x=>x.id===picked);
+  if (!expense || expense.recurringTemplateId || !String(expense.date||"").startsWith(month+"-") ||
+      !Number.isFinite(Number(expense.amount)) || Number(expense.amount)<=0) return;
+  if (!confirm(`Link recorded expense "${expense.title}" (${money(expense.amount)}) to "${b.title}"?\n\nNo expense will be created or modified in amount.`)) return;
+  if (!canRecordPayment(id) || expense.recurringTemplateId) {paymentBlocked();return;}
+  expense.recurringTemplateId=id;
+  linkingId=null;
+  errorText="";
+  save();
+  render();
+}
+
+  function unlinkExpense(billId,expenseId) {
+  if (!canTrackPayment()) {paymentBlocked();return;}
+  const expense=data().expenses.find(x=>x.id===expenseId && x.recurringTemplateId===billId);
+  if (!expense) return;
+  if (!confirm(`Unlink "${expense.title}" from this bill?\n\nThe expense stays in Spending with the same amount.`)) return;
+  if (!canTrackPayment() || expense.recurringTemplateId!==billId) {paymentBlocked();return;}
+  delete expense.recurringTemplateId;
+  linkingId=null;
+  errorText="";
+  save();
+  render();
+}
+
   root.addEventListener("click", (event) => {
     const button = event.target.closest("button");
 
@@ -977,6 +1156,28 @@
     }
 
     if (view !== "recurring") return;
+
+    if (button.dataset.billRecord) {
+      recordBillPayment(button.dataset.billRecord);
+      return;
+    }
+    if (button.dataset.billLinkOpen) {
+      beginLink(button.dataset.billLinkOpen);
+      return;
+    }
+    if (button.hasAttribute("data-bill-link-cancel")) {
+      linkingId = null;
+      render();
+      return;
+    }
+    if (button.dataset.billLinkSave) {
+      linkExistingExpense(button.dataset.billLinkSave);
+      return;
+    }
+    if (button.dataset.billUnlink) {
+      unlinkExpense(button.dataset.billUnlink, button.dataset.expenseId);
+      return;
+    }
 
     if (button.hasAttribute("data-pr-new")) {
       selectedId = null;
@@ -1050,7 +1251,7 @@
       if (JSON.stringify(latest) !== snapshot) {
         templates = latest;
         errorText = "";
-        if (view === "recurring") render();
+        if (view === "recurring" || view === "dashboard") render();
       }
     } catch (error) {
       console.warn("Penvoria recurring refresh failed:", error);
@@ -1076,5 +1277,6 @@
     loadForUser,
     reset,
     syncRecurringTemplates,
+    canRecordPayment,
   };
 })();

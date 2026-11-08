@@ -67,3 +67,62 @@
   .pr-actions { width: 100%; }
   .pr-actions button { flex: 1 1 auto; }
 }
+
+
+/* Penvoria v1.4 — read-only bill schedule */
+.ub-panel { margin: 0 0 18px; }
+.ub-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+.ub-head h2 { margin-bottom: 4px; }
+.ub-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+.ub-item { display: flex; justify-content: space-between; gap: 16px; align-items: center; border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.ub-item-text, .ub-item-meta { display: grid; gap: 5px; }
+.ub-item-text strong, .ub-item-meta strong { overflow-wrap: anywhere; }
+.ub-item-text small { color: var(--muted); }
+.ub-item-meta { text-align: right; justify-items: end; }
+.ub-status { font-size: 12px; color: var(--muted); }
+.ub-status[data-timing="due-today"] { color: var(--accent); font-weight: 700; }
+.ub-empty { margin: 14px 0 0; color: var(--muted); }
+.ub-disclaimer { margin-bottom: 0; }
+@media (max-width: 700px) {
+  .ub-head .secondary { width: 100%; }
+  .ub-item { align-items: flex-start; }
+  .ub-item-meta { min-width: 105px; }
+}
+
+
+/* v1.4 Phase 2 — explicit linked payment controls */
+.ub-item--full { display: block; }
+.ub-item-main { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+.ub-item-text small { display: block; }
+.ub-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.ub-controls button { min-height: 38px; }
+.ub-status[data-timing="paid"], .ub-status[data-timing="partial"] { color: var(--accent); font-weight: 700; }
+.ub-status[data-timing="overdue"] { color: var(--danger); font-weight: 700; }
+.ub-payment-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.ub-payment-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+.ub-payment-list li span { font-size: 13px; overflow-wrap: anywhere; }
+.ub-linker { margin-top: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
+.ub-linker p { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.ub-linker label { display: block; margin: 0 0 6px; font-weight: 600; }
+.ub-linker select { width: 100%; padding: 9px; min-height: 42px; font-size: 16px; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 9px; }
+@media (max-width: 700px) {
+  .ub-controls button { flex: 1 1 auto; }
+  .ub-payment-list li { align-items: flex-start; }
+  .ub-payment-list li button { flex: 0 0 auto; }
+}
+
+
+/* v1.4 — grouped recurring template management */
+.pr-groups { display: grid; gap: 20px; margin-top: 18px; }
+.pr-group { min-width: 0; }
+.pr-group-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
+.pr-group-heading h3 { margin: 0 0 5px; font-size: 17px; }
+.pr-group-heading .panel-sub { margin: 0; max-width: 650px; line-height: 1.5; }
+.pr-group-count { flex-shrink: 0; font-size: 12px; color: var(--muted); padding: 5px 9px; border: 1px solid var(--border); border-radius: 999px; }
+.pr-group .pr-list { margin: 0; }
+.pr-group-empty { border: 1px dashed var(--border); border-radius: 11px; padding: 14px 16px; color: var(--muted); font-size: 13px; margin: 0; }
+@media (max-width: 700px) {
+  .pr-groups { gap: 22px; }
+  .pr-group-heading { flex-direction: column; gap: 7px; }
+  .pr-group-count { align-self: flex-start; }
+}
