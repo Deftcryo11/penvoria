@@ -564,7 +564,31 @@
   `;
 }
 
-    function recurringHTML() {
+  function groupedTemplatesHTML() {
+  const groups = window.PenvoriaRecurringGroups?.groupRecurringTemplates(templates);
+  if (!groups) return "";
+  return [
+    '<div class="pr-groups" aria-label="Recurring template groups">',
+    ...groups.map((group) => `
+      <section class="pr-group" aria-labelledby="pr-group-${safe(group.key)}">
+        <div class="pr-group-heading">
+          <div>
+            <h3 id="pr-group-${safe(group.key)}">${safe(group.title)}</h3>
+            <p class="panel-sub">${safe(group.description)}</p>
+          </div>
+          <span class="pr-group-count">${group.items.length}
+            ${group.items.length === 1 ? "template" : "templates"}</span>
+        </div>
+        ${group.items.length
+          ? `<div class="pr-list">${group.items.map(rowHTML).join("")}</div>`
+          : `<p class="pr-group-empty">${safe(group.empty)}</p>`}
+      </section>
+    `),
+    '</div>',
+  ].join("");
+}
+
+  function recurringHTML() {
     if (!hasAccess()) {
       return `
         <section class="panel">
@@ -641,24 +665,7 @@
               `
         }
 
-        ${
-          loaded
-            ? `
-              <div class="pr-list">
-                ${
-                  templates.length
-                    ? templates.map(rowHTML).join("")
-                    : `
-                      <div class="empty">
-                        No recurring templates yet.
-                        Create your first one.
-                      </div>
-                    `
-                }
-              </div>
-            `
-            : ""
-        }
+        ${loaded ? groupedTemplatesHTML() : ""}
 
         ${loaded && selectedId !== "closed" ? editorHTML() : ""}
       </section>

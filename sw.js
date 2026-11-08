@@ -1,7 +1,7 @@
 "use strict";
 
 // Change this value for each future PWA release.
-const CACHE_NAME = "penvoria-shell-v1.4-02";
+const CACHE_NAME = "penvoria-shell-v1.4-03";
 const CACHE_PREFIX = "penvoria-shell-";
 
 const OFFLINE_URL = new URL("./offline.html", self.registration.scope).href;
@@ -17,6 +17,7 @@ const STATIC_FILES = new Set([
   "app.js",
   "features.js",
   "recurring.js",
+  "recurring-groups.js",
   "upcoming-bills.js",
   "cloud.js",
   "conflict-recovery.js",
