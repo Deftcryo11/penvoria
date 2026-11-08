@@ -106,7 +106,7 @@
       console.error("Penvoria recurring load error:", error);
     }
 
-    if (view === "recurring" && hasAccess()) {
+    if ((view === "recurring" || view === "dashboard") && hasAccess()) {
       render();
     }
   }
@@ -469,6 +469,45 @@
     `;
   }
 
+  function upcomingBillsHTML(compact) {
+    if (!loaded || !hasAccess() || !window.PenvoriaUpcomingBills) return "";
+
+    const schedule = window.PenvoriaUpcomingBills.getSchedule(templates, month);
+    const visible = compact ? schedule.bills.slice(0, 3) : schedule.bills;
+    const remaining = schedule.count - visible.length;
+
+    const itemHTML = (bill) => {
+      const label = bill.timing === "date-passed" ? "Date passed" :
+        bill.timing === "due-today" ? "Due today" : "Scheduled";
+
+      return [
+        '<li class="ub-item"><div class="ub-item-text"><strong>',
+        safe(bill.title),
+        '</strong><small>Due <time datetime="', safe(bill.dueDate),
+        '">', safe(bill.dueDate), '</time></small></div>',
+        '<div class="ub-item-meta"><strong>', money(bill.amount), '</strong>',
+        '<span class="ub-status" data-timing="', safe(bill.timing),
+        '">', label, '</span></div></li>',
+      ].join("");
+    };
+
+    return [
+      '<section class="panel ub-panel" aria-label="Upcoming bills schedule">',
+      '<div class="ub-head"><div><h2>Upcoming bills</h2>',
+      '<p class="panel-sub">', schedule.count, ' scheduled bill(s) for ',
+      safe(monthLabel(month)), ' · ', money(schedule.total),
+      ' planned</p></div>',
+      compact ? '<button class="secondary" type="button" data-pr-open>View recurring bills</button>' : '',
+      '</div>',
+      schedule.count ? '<ul class="ub-list">' + visible.map(itemHTML).join("") + '</ul>' :
+        '<p class="ub-empty">No active recurring bills scheduled for this month.</p>',
+      remaining > 0 ? '<p class="pr-note">+ ' + remaining + ' more bill(s) on Recurring.</p>' : '',
+      '<p class="pr-note ub-disclaimer">',
+      'Dates and amounts are reminders only. Payment status is not checked. ',
+      'Record actual payments in Spending.</p></section>',
+    ].join("");
+  }
+
   function recurringHTML() {
     if (!hasAccess()) {
       return `
@@ -516,6 +555,8 @@
             </button>
           </div>
         </div>
+
+        ${upcomingBillsHTML(false)}
 
         <p
           id="pr-error"
@@ -587,6 +628,8 @@
       if (typeField) {
         updateFields();
       }
+    } else if (view === "dashboard" && hasAccess()) {
+      root.insertAdjacentHTML("afterbegin", upcomingBillsHTML(true));
     } else if (view === "planning") {
       root.insertAdjacentHTML(
         "afterbegin",
@@ -1050,7 +1093,7 @@
       if (JSON.stringify(latest) !== snapshot) {
         templates = latest;
         errorText = "";
-        if (view === "recurring") render();
+        if (view === "recurring" || view === "dashboard") render();
       }
     } catch (error) {
       console.warn("Penvoria recurring refresh failed:", error);

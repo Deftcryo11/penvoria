@@ -67,3 +67,24 @@
   .pr-actions { width: 100%; }
   .pr-actions button { flex: 1 1 auto; }
 }
+
+
+/* Penvoria v1.4 — read-only bill schedule */
+.ub-panel { margin: 0 0 18px; }
+.ub-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+.ub-head h2 { margin-bottom: 4px; }
+.ub-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+.ub-item { display: flex; justify-content: space-between; gap: 16px; align-items: center; border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.ub-item-text, .ub-item-meta { display: grid; gap: 5px; }
+.ub-item-text strong, .ub-item-meta strong { overflow-wrap: anywhere; }
+.ub-item-text small { color: var(--muted); }
+.ub-item-meta { text-align: right; justify-items: end; }
+.ub-status { font-size: 12px; color: var(--muted); }
+.ub-status[data-timing="due-today"] { color: var(--accent); font-weight: 700; }
+.ub-empty { margin: 14px 0 0; color: var(--muted); }
+.ub-disclaimer { margin-bottom: 0; }
+@media (max-width: 700px) {
+  .ub-head .secondary { width: 100%; }
+  .ub-item { align-items: flex-start; }
+  .ub-item-meta { min-width: 105px; }
+}
