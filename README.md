@@ -9,7 +9,7 @@ Penvoria is a responsive, installable personal-finance PWA for monthly budgets i
 - Spending: quick expense entry, category allocations, search and filters.
 - History: month-by-month records and permanent deletion with optional JSON backup. **There is no deleted-month restore feature.**
 - Recurring: reviewed monthly templates. No automatic entries or payments; recurring bills create planned Needs allocations, not recorded payments.
-- Upcoming bills (v1.4 Phase 1): read-only due-date schedule for active bill templates on Overview and Recurring; does not infer payment status or change financial records.
+- Upcoming bills (v1.4 Phase 2): bill payment status comes only from explicitly linked Spending expenses in the selected month. Link existing expenses, record new payments, handle partial payments, and unlink without deleting an expense. No automatic transactions, no new database tables; monthly revision checks still protect syncing.
 - Export financial reports to CSV/PDF or JSON backup.
 - Supabase email authentication, month revision checks, local recovery drafts, and cross-device monthly budget refresh.
 - Installable mobile PWA, iPhone navigation, update prompts and offline status.

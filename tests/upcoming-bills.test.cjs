@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { dueDateFor, getSchedule } = require("../upcoming-bills.js");
+const { dueDateFor, getSchedule, linkedPayments } = require("../upcoming-bills.js");
 
 const bill = (changes = {}) => ({
   id: "bill-one", entry_type: "expenses", active: true,
@@ -65,4 +65,59 @@ test("bad rows are ignored safely", () => {
   ], "2026-11", "2026-11-08");
   assert.equal(result.count, 0);
   assert.equal(result.total, 0);
+});
+
+test("unlinked matching expense is not treated as a payment", () => {
+  const r=getSchedule([bill()],"2026-11","2026-11-08",[
+    {id:"e1",title:"Internet",amount:250,date:"2026-11-05"}
+  ]);
+  assert.equal(r.bills[0].status,"upcoming");
+  assert.equal(r.bills[0].recorded,0);
+});
+test("linked spending marks only that bill paid", () => {
+  const r=getSchedule([bill(),bill({id:"rent",title:"Rent",amount:800,day_of_month:5})],
+    "2026-11","2026-11-08",[
+      {id:"e1",recurringTemplateId:"bill-one",amount:250,date:"2026-11-06"}
+    ]);
+  assert.equal(r.bills.find(b=>b.id==="bill-one").status,"paid");
+  assert.equal(r.bills.find(b=>b.id==="rent").status,"overdue");
+});
+test("partial payments accumulate without double counting another month", () => {
+  const payments=[
+    {id:"e1",recurringTemplateId:"bill-one",amount:100,date:"2026-11-05"},
+    {id:"e2",recurringTemplateId:"bill-one",amount:150,date:"2026-11-06"},
+    {id:"e3",recurringTemplateId:"bill-one",amount:200,date:"2026-10-06"},
+  ];
+  let r=getSchedule([bill()],"2026-11","2026-11-08",payments.slice(0,1));
+  assert.equal(r.bills[0].status,"partial");
+  assert.equal(r.bills[0].remaining,150);
+  r=getSchedule([bill()],"2026-11","2026-11-08",payments);
+  assert.equal(r.bills[0].status,"paid");
+  assert.equal(r.bills[0].recorded,250);
+  assert.equal(linkedPayments(payments,"bill-one","2026-11").length,2);
+});
+test("unlinked payment keeps expense and restores remaining balance", () => {
+  const e={id:"e1",amount:250,date:"2026-11-06",recurringTemplateId:"bill-one"};
+  assert.equal(getSchedule([bill()],"2026-11","2026-11-08",[e]).bills[0].status,"paid");
+  delete e.recurringTemplateId;
+  const r=getSchedule([bill()],"2026-11","2026-11-08",[e]);
+  assert.equal(r.bills[0].status,"upcoming");
+  assert.equal(e.amount,250);
+});
+test("overpayment is paid, with no negative remaining amount", () => {
+  const r=getSchedule([bill()],"2026-11","2026-11-08",[
+    {id:"e1",amount:300,date:"2026-11-07",recurringTemplateId:"bill-one"}]);
+  assert.equal(r.bills[0].status,"paid");
+  assert.equal(r.bills[0].remaining,0);
+  assert.equal(r.bills[0].recorded,300);
+});
+test("expense form integration retains links when editing and does not auto-post", () => {
+  const fs=require("node:fs"),path=require("node:path");
+  const app=fs.readFileSync(path.join(__dirname,"..","app.js"),"utf8");
+  const rec=fs.readFileSync(path.join(__dirname,"..","recurring.js"),"utf8");
+  assert.match(rec,/openModal\("expenses",null,\{bill:/);
+  assert.match(rec,/expense\.recurringTemplateId=id/);
+  assert.match(rec,/delete expense\.recurringTemplateId/);
+  assert.match(app,/record\.recurringTemplateId = editing\.paymentBillId/);
+  assert.match(app,/record\.recurringTemplateId = list\[index\]\.recurringTemplateId/);
 });

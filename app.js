@@ -1634,12 +1634,26 @@ let scrollBeforeEntryModal = null;
 // ADD / EDIT MODAL
 // ==========================================
 
-function openModal(type, id = null) {
-  const record = id ? data()[type].find((item) => item.id === id) : null;
+function openModal(type, id = null, options = {}) {
+  const billPrefill = type === "expenses" && !id && options.bill
+    ? {
+        title: options.bill.title,
+        amount: options.bill.amount,
+        category: options.bill.category,
+        customCategory: options.bill.customCategory,
+        date: options.bill.date,
+      }
+    : null;
+  const record = id ? data()[type].find((item) => item.id === id) : billPrefill;
 
   if (id && !record) return;
 
-  editing = { type, id };
+  editing = {
+    type,
+    id,
+    paymentBillId: billPrefill ? options.bill.id : null,
+    paymentBillMonth: billPrefill ? month : null,
+  };
 
   $("#modalTitle").textContent =
     (id ? "Edit " : "Add ") +
@@ -1897,6 +1911,12 @@ $("#entryForm").addEventListener("submit", (event) => {
   }
 
   const { type, id } = editing;
+  if (editing.paymentBillId &&
+      (type !== "expenses" || id || editing.paymentBillMonth !== month ||
+       !window.PenvoriaRecurring?.canRecordPayment(editing.paymentBillId))) {
+    alert("Payment tracking is unavailable. Close this form, wait for cloud sync, and try again.");
+    return;
+  }
 
   const record = {
     id: id || makeId(),
@@ -1965,6 +1985,9 @@ $("#entryForm").addEventListener("submit", (event) => {
     const previous = id ? data().expenses.find((item) => item.id === id) : null;
 
     record.type = previous && isNeed(previous) ? "need" : "other";
+    if (!id && editing.paymentBillId) {
+      record.recurringTemplateId = editing.paymentBillId;
+    }
   }
 
   const list = data()[type];
