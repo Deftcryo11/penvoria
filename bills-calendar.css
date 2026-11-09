@@ -1,4 +1,4 @@
-/* Penvoria v1.5 — calendar and read-only in-app bill reminders */
+/* Penvoria v1.5 — calendar plus reminders integrated into Upcoming Bills */
 .bc-panel, .bc-reminders { margin: 18px 0; }
 .bc-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .bc-heading h2 { margin: 0 0 4px; }
@@ -38,3 +38,14 @@
   .bc-reminder-list li > strong { max-width: 46%; }
   .bc-reminders > button { width: 100%; }
 }
+
+
+/* Consolidated reminders: a single Upcoming Bills panel on Overview. */
+.ub-attention { display: inline-flex; align-items: center; gap: 6px; margin: 9px 0 0;
+  border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.ub-alert-note { color: var(--danger) !important; font-weight: 700; }
+.ub-next-month { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
+.ub-next-month h3 { margin: 0 0 10px; font-size: 14px; }
+.ub-next-month .ub-list { margin-top: 0; }
+@media (max-width: 700px) { .ub-attention { border-radius: 11px; max-width: 100%; } }

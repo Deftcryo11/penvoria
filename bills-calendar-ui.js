@@ -99,52 +99,6 @@
     `;
   }
 
-  function remindersHTML() {
-    const today = todayKey();
-    if (!today || month !== today.slice(0, 7)) return "";
-    const api = helpers();
-    const current = scheduleFor(month);
-    const nextMonth = api?.shiftMonth(month, 1);
-    const next = nextMonth ? scheduleFor(nextMonth) : null;
-    if (!api || !current || !next) return "";
-
-    const reminders = api.getReminders([...current.bills, ...next.bills], today, 7);
-    const visible = reminders.slice(0, 5);
-    return `
-      <section class="panel bc-reminders" aria-label="Bill reminders">
-        <div class="bc-heading">
-          <div>
-            <h2>Bill reminders</h2>
-            <p class="panel-sub">Overdue this month or due within the next 7 days</p>
-          </div>
-          <span class="bc-month-count">${reminders.length} alert(s)</span>
-        </div>
-        ${visible.length ? `
-          <ul class="bc-reminder-list">
-            ${visible.map(bill => {
-              const label = bill.reminder === "overdue" ? "Past due" :
-                bill.reminder === "today" ? "Due today" :
-                `In ${bill.daysUntil} day${bill.daysUntil === 1 ? "" : "s"}`;
-              return `
-                <li>
-                  <div>
-                    <strong>${safe(bill.title)}</strong>
-                    <small>${safe(bill.dueDate)} · ${safe(label)}
-                      ${bill.status === "partial" ? "· Partially paid" : ""}</small>
-                  </div>
-                  <strong>${money(bill.remaining)} remaining</strong>
-                </li>`;
-            }).join("")}
-          </ul>
-          ${reminders.length > visible.length ?
-            `<p class="pr-note">+ ${reminders.length - visible.length} more reminder(s)</p>` : ""}
-        ` : '<p class="bc-empty">No unpaid bills due within seven days or overdue this month.</p>'}
-        <button type="button" class="secondary" data-pr-open>View bills calendar</button>
-        <p class="pr-note">In-app reminders only. No push notifications or automatic payments.</p>
-      </section>
-    `;
-  }
-
   // Preserve all earlier rendering wrappers and recurring-editor behavior.
   const previousRender = render;
   render = function (...args) {
@@ -152,9 +106,6 @@
     if (view === "recurring") {
       const calendar = calendarHTML();
       if (calendar) root.querySelector(".pr-panel")?.insertAdjacentHTML("afterend", calendar);
-    } else if (view === "dashboard") {
-      const reminder = remindersHTML();
-      if (reminder) root.insertAdjacentHTML("afterbegin", reminder);
     }
     return result;
   };

@@ -3,7 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { shiftMonth, daysBetween, buildCalendar, getReminders } = require("../bills-calendar.js");
+const { shiftMonth, daysBetween, buildCalendar, getReminders, overviewReminders } = require("../bills-calendar.js");
 
 const bill = (overrides = {}) => ({
   id:"rent", title:"Rent", dueDate:"2026-11-10",
@@ -78,10 +78,51 @@ test("v1.5 calendar is read-only and loaded with existing recurring integration"
   assert.match(ui,/previousRender/);
   assert.match(ui,/data-bc-date/);
   assert.match(ui,/root\.querySelector\("#bc-selected"\)/);
-  assert.match(ui,/data-pr-open/);
+  assert.match(recurring,/data-pr-open/);
+  assert.doesNotMatch(ui,/function remindersHTML\(/);
+  assert.doesNotMatch(ui,/class="panel bc-reminders"/);
+  assert.match(recurring,/overviewReminders\(/);
+  assert.match(recurring,/Due soon next month/);
   assert.doesNotMatch(ui,/queueSave\(|\.insert\(|\.update\(/);
   for(const asset of ["bills-calendar.js","bills-calendar-ui.js","bills-calendar.css"]) {
     assert.ok(html.includes(asset));
     assert.ok(worker.includes(asset));
   }
+});
+
+
+test("the Overview prioritizes overdue and due-soon bills without duplication", () => {
+  const bills = [
+    bill({id:"paid",status:"paid",remaining:0,dueDate:"2026-11-01"}),
+    bill({id:"far",dueDate:"2026-11-28"}),
+    bill({id:"soon",dueDate:"2026-11-11"}),
+    bill({id:"late",dueDate:"2026-11-02",status:"overdue",timing:"date-passed"}),
+  ];
+  const result=overviewReminders(bills,[],"2026-11-09",3);
+  assert.deepEqual(result.current.map(x=>x.id),["late","soon","far"]);
+  assert.equal(result.remainingCurrent,1);
+  assert.equal(result.alerts.length,2);
+  assert.deepEqual(result.nextMonth,[]);
+});
+
+test("the merged Overview keeps next-month reminders inside its single section", () => {
+  const current=[bill({id:"nov",dueDate:"2026-11-30"})];
+  const next=[bill({id:"dec",dueDate:"2026-12-03"})];
+  const r=overviewReminders(current,next,"2026-11-29",3);
+  assert.deepEqual(r.current.map(x=>x.id),["nov"]);
+  assert.deepEqual(r.nextMonth.map(x=>x.id),["dec"]);
+  assert.equal(r.alerts.length,2);
+});
+
+test("paid bills do not trigger attention reminders", () => {
+  const r=overviewReminders([bill({status:"paid",remaining:0})],[],"2026-11-09",3);
+  assert.equal(r.alerts.length,0);
+  assert.equal(r.current.length,1);
+});
+
+test("Overview grouping never mutates original payment records or bill order", () => {
+  const source=[bill({id:"later",dueDate:"2026-11-30"}),bill({id:"urgent",dueDate:"2026-11-10"})];
+  const before=JSON.stringify(source);
+  overviewReminders(source,[],"2026-11-09",3);
+  assert.equal(JSON.stringify(source),before);
 });

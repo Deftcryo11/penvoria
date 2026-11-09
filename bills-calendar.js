@@ -65,7 +65,32 @@
         String(a.title || "").localeCompare(String(b.title || "")));
   }
 
-  const api = { shiftMonth, daysBetween, buildCalendar, getReminders };
+  function overviewReminders(currentBills, nextMonthBills, today, limit = 3) {
+  const current = Array.isArray(currentBills) ? currentBills : [];
+  const next = Array.isArray(nextMonthBills) ? nextMonthBills : [];
+  const alerts = getReminders([...current, ...next], today, 7);
+  const alertKeys = new Set(alerts.map(x => x.id + "|" + x.dueDate));
+  const priority = bill => {
+    if (bill.status === "paid") return 4;
+    if (!alertKeys.has(bill.id + "|" + bill.dueDate)) return 3;
+    const days = daysBetween(bill.dueDate, today);
+    return days < 0 ? 0 : days === 0 ? 1 : 2;
+  };
+  const ordered = [...current].sort((a,b) => {
+    const level = priority(a) - priority(b);
+    return level || String(a.dueDate).localeCompare(String(b.dueDate)) ||
+      String(a.title || "").localeCompare(String(b.title || ""));
+  });
+  const dateMonth = today.slice(0,7);
+  return {
+    alerts,
+    current: ordered.slice(0,limit),
+    remainingCurrent: Math.max(0,current.length-limit),
+    nextMonth: alerts.filter(x => x.dueDate.slice(0,7) !== dateMonth),
+  };
+}
+
+  const api = { shiftMonth, daysBetween, buildCalendar, getReminders, overviewReminders };
   if (typeof window !== "undefined") window.PenvoriaBillsCalendar = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();
