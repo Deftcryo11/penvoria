@@ -1278,5 +1278,14 @@
     reset,
     syncRecurringTemplates,
     canRecordPayment,
+    getMonthBillSchedule(monthKey) {
+      if (!loaded || !hasAccess() || !window.PenvoriaUpcomingBills ||
+          !/^\d{4}-(0[1-9]|1[0-2])$/.test(monthKey)) return null;
+
+      // Read existing monthly data without creating or changing a budget month.
+      const expenses = state.months?.[monthKey]?.expenses || [];
+      const helper = window.PenvoriaUpcomingBills;
+      return helper.getSchedule(templates, monthKey, helper.localToday(), expenses);
+    },
   };
 })();

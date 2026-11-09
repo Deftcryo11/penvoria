@@ -1,0 +1,40 @@
+/* Penvoria v1.5 — calendar and read-only in-app bill reminders */
+.bc-panel, .bc-reminders { margin: 18px 0; }
+.bc-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.bc-heading h2 { margin: 0 0 4px; }
+.bc-month-count { color: var(--muted); background: var(--bg); border: 1px solid var(--border); padding: 6px 10px; border-radius: 999px; font-size: 12px; }
+.bc-weekdays, .bc-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.bc-weekdays { margin: 16px 0 6px; text-align: center; color: var(--muted); font-size: 12px; font-weight: 600; }
+.bc-blank { min-width: 0; }
+.bc-day { position: relative; min-width: 0; min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 7px 2px; border: 1px solid var(--border); background: var(--panel); color: var(--text); border-radius: 10px; cursor: pointer; }
+.bc-day:hover, .bc-day:focus-visible { border-color: var(--accent); }
+.bc-day:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bc-day.bc-today .bc-number { font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.bc-day.bc-selected-day { border-color: var(--accent); background: var(--accent2); }
+.bc-number { font-size: 13px; font-variant-numeric: tabular-nums; }
+.bc-marker { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.bc-day[data-bc-mark="paid"] .bc-marker { background: var(--accent); }
+.bc-day[data-bc-mark="overdue"] .bc-marker { background: var(--danger); }
+.bc-day[data-bc-mark="partial"] .bc-marker { background: #bf8b30; }
+.bc-selected { margin-top: 14px; border: 1px solid var(--border); border-radius: 11px; padding: 14px; }
+.bc-selected h3 { font-size: 15px; margin: 0 0 12px; }
+.bc-detail-list, .bc-reminder-list { padding: 0; margin: 0; list-style: none; display: grid; gap: 10px; }
+.bc-detail-list li, .bc-reminder-list li { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.bc-detail-list li:last-child, .bc-reminder-list li:last-child { padding-bottom: 0; border-bottom: 0; }
+.bc-detail-list li > div, .bc-reminder-list li > div { min-width: 0; }
+.bc-detail-list strong, .bc-reminder-list strong { display: block; overflow-wrap: anywhere; font-size: 13px; }
+.bc-detail-list small, .bc-reminder-list small { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+.bc-detail-values { text-align: right; flex-shrink: 0; }
+.bc-empty { margin: 12px 0; color: var(--muted); font-size: 13px; }
+.bc-reminder-list { margin: 16px 0; }
+.bc-reminder-list li > strong { flex-shrink: 0; text-align: right; }
+.bc-reminders > button { margin-top: 6px; }
+@media (max-width: 700px) {
+  .bc-weekdays, .bc-grid { gap: 3px; }
+  .bc-day { min-height: 47px; border-radius: 7px; gap: 5px; }
+  .bc-number { font-size: 12px; }
+  .bc-marker { width: 6px; height: 6px; }
+  .bc-detail-list li, .bc-reminder-list li { gap: 8px; }
+  .bc-reminder-list li > strong { max-width: 46%; }
+  .bc-reminders > button { width: 100%; }
+}
