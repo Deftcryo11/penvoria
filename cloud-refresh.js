@@ -55,7 +55,7 @@
       return "Close the entry form before refreshing.";
     }
 
-    if (document.querySelector("dialog[open], #pr-form")) {
+    if (document.querySelector("dialog[open], #pr-form, #pg-form")) {
       return "Close the open form or dialog before refreshing.";
     }
 
@@ -129,6 +129,7 @@
           needs: Array.isArray(row.data?.needs) ? row.data.needs : [],
           expenses: Array.isArray(row.data?.expenses) ? row.data.expenses : [],
           savings: Array.isArray(row.data?.savings) ? row.data.savings : [],
+          goals: Array.isArray(row.data?.goals) ? row.data.goals : [],
         };
 
         remoteVersions[key] = row.revision;

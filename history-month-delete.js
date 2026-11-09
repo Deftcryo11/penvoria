@@ -34,7 +34,8 @@
       <p>
         This permanently deletes all income,
         needs, spending and savings recorded
-        for this month. Recurring templates
+        for this month. Savings goal definitions created
+        in this month will also be removed. Recurring templates
         are kept.
       </p>
 

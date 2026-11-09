@@ -1,0 +1,66 @@
+/* Bills Calendar — compact accessible theme-matched layout */
+.bc-panel{min-width:0;margin:18px 0 24px;padding:clamp(13px,2vw,21px);border:1px solid var(--border);border-radius:14px;background:var(--bg)}
+.bc-heading{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px}
+.bc-title-area{min-width:0}
+.bc-eyebrow{color:var(--accent);font-weight:800;font-size:10px;letter-spacing:1.3px}
+.bc-heading h2{font-size:18px;margin:5px 0}
+.bc-heading .panel-sub{margin:0;line-height:1.5}
+.bc-summary{display:flex;flex-wrap:wrap;gap:7px}
+.bc-summary span{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border);background:var(--panel);color:var(--muted);border-radius:999px;padding:6px 10px;font-size:12px}
+.bc-summary strong{color:var(--text);font-variant-numeric:tabular-nums}
+.bc-calendar-header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;align-items:baseline;margin:20px 0 11px}
+.bc-calendar-header h3{font-size:15px;margin:0}
+.bc-calendar-header small{font-size:11px;color:var(--muted)}
+.bc-weekdays,.bc-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:clamp(3px,.75vw,8px)}
+.bc-weekdays{margin-bottom:6px;text-align:center;color:var(--muted);font-size:11px;font-weight:700}
+.bc-weekdays span{padding:7px 0}
+.bc-blank{min-width:0}
+.bc-day{appearance:none;min-width:0;min-height:64px;padding:8px 2px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;text-align:center;transition:border-color .15s,background-color .15s}
+.bc-day:hover{border-color:var(--accent)}
+.bc-day:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bc-day.bc-selected-day{border:2px solid var(--accent);background:var(--accent2)}
+.bc-day.bc-today .bc-number{text-decoration:underline;text-underline-offset:4px;font-weight:800}
+.bc-number{font-size:14px;font-variant-numeric:tabular-nums;font-weight:600;line-height:1}
+.bc-day-detail{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:700}
+.bc-marker,.bc-legend-dot{display:inline-block;width:8px;height:8px;flex:none;border-radius:50%;background:var(--muted)}
+.bc-day[data-bc-mark="paid"] .bc-marker,.bc-legend-paid{background:var(--accent)}
+.bc-day[data-bc-mark="partial"] .bc-marker,.bc-legend-partial{background:#ca9439}
+.bc-day[data-bc-mark="overdue"] .bc-marker,.bc-legend-overdue{background:var(--danger)}
+.bc-day[data-bc-mark="scheduled"] .bc-marker,.bc-legend-scheduled{background:var(--muted)}
+.bc-legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:14px 0 0}
+.bc-legend-item{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+.bc-selected{background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:15px;margin-top:16px}
+.bc-selected h3{font-size:15px;margin:0 0 12px}
+.bc-detail-list{list-style:none;display:grid;gap:10px;padding:0;margin:0}
+.bc-detail-list li{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.bc-detail-list li:last-child{padding-bottom:0;border-bottom:0}
+.bc-detail-list li>div{min-width:0}
+.bc-detail-list strong{display:block;font-size:13px;overflow-wrap:anywhere}
+.bc-detail-list small{display:block;font-size:12px;color:var(--muted);margin-top:4px}
+.bc-detail-values{text-align:right;flex-shrink:0}
+.bc-empty{font-size:13px;color:var(--muted);margin:10px 0}
+.bc-footnote{margin:12px 0 0;line-height:1.5}
+/* Only ONE reminder summary lives in Upcoming Bills on Overview. */
+.ub-attention{display:inline-flex;align-items:center;max-width:100%;margin:9px 0 0;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700}
+.ub-alert-note{color:var(--danger)!important;font-weight:700}
+.ub-next-month{border-top:1px solid var(--border);margin-top:14px;padding-top:14px}
+.ub-next-month h3{margin:0 0 10px;font-size:14px}
+.ub-next-month .ub-list{margin-top:0}
+@media(max-width:700px){
+ .bc-panel{padding:12px;margin:14px 0 18px}
+ .bc-summary{width:100%}
+ .bc-summary span{font-size:11px;padding:5px 9px}
+ .bc-calendar-header{margin-top:15px}
+ .bc-calendar-header small{font-size:10px}
+ .bc-weekdays,.bc-grid{gap:3px}
+ .bc-weekdays span{padding:5px 0}
+ .bc-day{min-height:48px;border-radius:7px;padding:6px 1px;gap:5px}
+ .bc-number{font-size:12px}
+ .bc-day-detail{gap:2px;font-size:9px}
+ .bc-marker,.bc-legend-dot{width:6px;height:6px}
+ .bc-selected{padding:12px}
+ .bc-detail-list li{gap:8px}
+ .bc-detail-values{max-width:48%}
+ .bc-legend{gap:9px}
+ .ub-attention{border-radius:10px}
+}

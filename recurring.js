@@ -475,8 +475,32 @@
   if (!loaded || !hasAccess() || !window.PenvoriaUpcomingBills) return "";
   const helper = window.PenvoriaUpcomingBills;
   const schedule = helper.getSchedule(templates, month, helper.localToday(), data().expenses);
-  const visible = compact ? schedule.bills.slice(0, 3) : schedule.bills;
+  const todayKey = helper.localToday();
+  const showAlerts = compact && month === todayKey.slice(0, 7) &&
+    !!window.PenvoriaBillsCalendar;
+  const cal = window.PenvoriaBillsCalendar;
+  const upcomingMonth = showAlerts ? cal.shiftMonth(month, 1) : null;
+  // Access already-loaded monthly data without creating any new financial records.
+  const upcomingExpenses = upcomingMonth ? state.months?.[upcomingMonth]?.expenses || [] : [];
+  const nextSchedule = upcomingMonth ?
+    helper.getSchedule(templates, upcomingMonth, todayKey, upcomingExpenses) : null;
+  const overview = showAlerts ?
+    cal.overviewReminders(schedule.bills, nextSchedule?.bills || [], todayKey, 3) : null;
+  const visible = compact ? (overview?.current || schedule.bills.slice(0, 3)) : schedule.bills;
   const extra = schedule.count - visible.length;
+  const alertById = new Map((overview?.alerts || []).map(bill =>
+    [bill.id + "|" + bill.dueDate, bill]));
+  const alertText = bill => {
+    const reminder = alertById.get(bill.id + "|" + bill.dueDate);
+    if (!reminder) return "";
+    if (reminder.daysUntil < 0) {
+      const days = Math.abs(reminder.daysUntil);
+      return "Overdue by " + days + " day" + (days === 1 ? "" : "s");
+    }
+    if (reminder.daysUntil === 0) return "Due today";
+    if (reminder.daysUntil === 1) return "Due tomorrow";
+    return "Due in " + reminder.daysUntil + " days";
+  };
   function linkEditor(bill) {
     if (compact || linkingId !== bill.id) return "";
     const eligible = data().expenses.filter(x =>
@@ -508,12 +532,14 @@
       bill.status==="overdue" ? "Overdue" :
       bill.status==="due-today" ? "Due today" : "Upcoming";
     const payments = compact ? [] : helper.linkedPayments(data().expenses,bill.id,month);
+    const dueNote = compact && showAlerts ? alertText(bill) : "";
     return `
       <li class="ub-item ${compact ? "" : "ub-item--full"}">
         <div class="ub-item-main">
           <div class="ub-item-text">
             <strong>${safe(bill.title)}</strong>
             <small>Due <time datetime="${safe(bill.dueDate)}">${safe(bill.dueDate)}</time></small>
+            ${dueNote ? `<small class="ub-alert-note">${safe(dueNote)}</small>` : ""}
             <small>${money(bill.recorded)} recorded · ${money(bill.remaining)} remaining</small>
           </div>
           <div class="ub-item-meta">
@@ -547,14 +573,24 @@
       <div class="ub-head">
         <div>
           <h2>Upcoming bills & payments</h2>
-          <p class="panel-sub">${schedule.count} bill(s) · ${money(schedule.total)} planned
-            · ${money(schedule.recorded)} recorded · ${money(schedule.remaining)} remaining</p>
+          <p class="panel-sub">${schedule.count} bill(s) for ${safe(monthLabel(month))}
+            · ${money(schedule.total)} planned · ${money(schedule.recorded)} recorded
+            · ${money(schedule.remaining)} remaining</p>
+          ${overview?.alerts.length ? `<p class="ub-attention" role="status">
+            ${overview.alerts.length} bill(s) overdue or due within 7 days
+          </p>` : ""}
         </div>
         ${compact ? '<button class="secondary" type="button" data-pr-open>View recurring bills</button>' : ""}
       </div>
       ${schedule.count ? `<ul class="ub-list">${visible.map(itemHTML).join("")}</ul>` :
         '<p class="ub-empty">No active recurring bills scheduled for this month.</p>'}
       ${extra > 0 ? `<p class="pr-note">+ ${extra} more bill(s) on Recurring.</p>` : ""}
+      ${overview?.nextMonth.length ? `
+        <div class="ub-next-month">
+          <h3>Due soon next month</h3>
+          <ul class="ub-list">${overview.nextMonth.map(itemHTML).join("")}</ul>
+        </div>
+      ` : ""}
       <p class="pr-note ub-disclaimer">
         Only linked Spending expenses count as payments.
         Record payment creates an expense only after you save its form.
@@ -1278,5 +1314,14 @@
     reset,
     syncRecurringTemplates,
     canRecordPayment,
+    getMonthBillSchedule(monthKey) {
+      if (!loaded || !hasAccess() || !window.PenvoriaUpcomingBills ||
+          !/^\d{4}-(0[1-9]|1[0-2])$/.test(monthKey)) return null;
+
+      // Read existing monthly data without creating or changing a budget month.
+      const expenses = state.months?.[monthKey]?.expenses || [];
+      const helper = window.PenvoriaUpcomingBills;
+      return helper.getSchedule(templates, monthKey, helper.localToday(), expenses);
+    },
   };
 })();

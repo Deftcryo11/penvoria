@@ -217,6 +217,7 @@ function normalizeMonth(value) {
     expenses: Array.isArray(value?.expenses) ? value.expenses : [],
 
     savings: Array.isArray(value?.savings) ? value.savings : [],
+    goals: Array.isArray(value?.goals) ? value.goals : [],
   };
 }
 
