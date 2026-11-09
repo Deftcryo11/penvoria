@@ -43,61 +43,87 @@
     `;
   }
 
-  function calendarHTML() {
-    const current = scheduleFor(month);
-    const logic = helpers();
-    if (!current || !logic) return "";
-    const model = logic.buildCalendar(month, current.bills);
-    if (!model.month) return "";
+  function calendarHTML(){
+  const current = scheduleFor(month);
+  const logic = helpers();
+  if (!current || !logic) return "";
+  const model = logic.buildCalendar(month, current.bills);
+  if (!model.month) return "";
 
-    const today = todayKey();
-    if (!selectedDate?.startsWith(month + "-") ||
-        !model.days.some(day => day.date === selectedDate)) {
-      selectedDate = today?.startsWith(month + "-") ? today :
-        model.days.find(day => day.bills.length)?.date || month + "-01";
-    }
-
-    const emptyCells = Array.from({ length: model.offset }, () =>
-      '<span class="bc-blank" aria-hidden="true"></span>').join("");
-    return `
-      <section class="panel bc-panel" aria-label="Bills calendar">
-        <div class="bc-heading">
-          <div>
-            <h2>Bills calendar</h2>
-            <p class="panel-sub">${safe(monthLabel(month))} · tap a date to view its bills</p>
-          </div>
-          <span class="bc-month-count">${current.count} bill(s)</span>
-        </div>
-        <div class="bc-weekdays" aria-hidden="true">
-          ${DAYS.map(day => `<span>${day}</span>`).join("")}
-        </div>
-        <div class="bc-grid" role="group" aria-label="${safe(monthLabel(month))} due dates">
-          ${emptyCells}
-          ${model.days.map(day => {
-            const isToday = day.date === today;
-            const isSelected = day.date === selectedDate;
-            return `
-              <button type="button"
-                class="bc-day ${isToday ? "bc-today" : ""} ${isSelected ? "bc-selected-day" : ""}"
-                data-bc-date="${safe(day.date)}"
-                data-bc-mark="${safe(day.mark)}"
-                aria-pressed="${isSelected ? "true" : "false"}"
-                aria-label="${safe(day.date)}: ${day.bills.length} bill(s)">
-                <span class="bc-number">${day.day}</span>
-                ${day.bills.length ? `<span class="bc-marker" aria-hidden="true"></span>` : ""}
-              </button>`;
-          }).join("")}
-        </div>
-        <div class="bc-selected" id="bc-selected" aria-live="polite">
-          ${selectedDayHTML(selectedDate, model)}
-        </div>
-        <p class="pr-note">
-          Calendar dates are reminders only. Paid and partial statuses use linked Spending
-          expenses. Change the month using Penvoria's month selector above.
-        </p>
-      </section>
-    `;
+  const today = todayKey();
+  if (!selectedDate?.startsWith(month + "-") ||
+      !model.days.some(day => day.date === selectedDate)) {
+    selectedDate = today?.startsWith(month + "-") ? today :
+      model.days.find(day => day.bills.length)?.date || month + "-01";
   }
+  const paid = current.bills.filter(b => b.status === "paid").length;
+  const pending = current.bills.length - paid;
+  const blank = Array.from({length: model.offset},() =>
+    '<span class="bc-blank" aria-hidden="true"></span>').join("");
+  const legend = [
+    ["scheduled", "Scheduled"], ["paid", "Paid"],
+    ["partial", "Partially paid"], ["overdue", "Overdue"],
+  ].map(([state, label]) => `
+    <span class="bc-legend-item"><i class="bc-legend-dot bc-legend-${state}" aria-hidden="true"></i>${label}</span>
+  `).join("");
+  return `
+    <section class="bc-panel" id="billsCalendar" aria-label="Bills calendar">
+      <div class="bc-heading">
+        <div class="bc-title-area">
+          <span class="bc-eyebrow">MONTHLY SCHEDULE</span>
+          <h2>Bills calendar</h2>
+          <p class="panel-sub">Choose a date to see its bills and payments.</p>
+        </div>
+        <div class="bc-summary">
+          <span><strong>${current.count}</strong> bills</span>
+          <span><strong>${pending}</strong> remaining</span>
+          <span><strong>${paid}</strong> paid</span>
+        </div>
+      </div>
+      <div class="bc-calendar-header">
+        <h3>${safe(monthLabel(month))}</h3>
+        <small>Change months using the selector above</small>
+      </div>
+      <div class="bc-weekdays" aria-hidden="true">
+        ${DAYS.map(day => `<span>${day}</span>`).join("")}
+      </div>
+      <div class="bc-grid" role="group" aria-label="${safe(monthLabel(month))} due dates">
+        ${blank}
+        ${model.days.map(day => {
+          const isToday = day.date === today, selected = day.date === selectedDate;
+          const label = day.mark === "paid" ? "paid" :
+            day.mark === "overdue" ? "overdue" :
+            day.mark === "partial" ? "partially paid" : "scheduled";
+          const summary = day.bills.length ?
+            `${day.bills.length} bill${day.bills.length===1?"":"s"}, ${label}` : "no bills";
+          return `
+            <button type="button"
+              class="bc-day ${isToday?"bc-today":""} ${selected?"bc-selected-day":""}"
+              data-bc-date="${safe(day.date)}"
+              data-bc-mark="${safe(day.mark)}"
+              aria-pressed="${selected?"true":"false"}"
+              aria-label="${safe(day.date)}: ${safe(summary)}">
+              <span class="bc-number">${day.day}</span>
+              ${day.bills.length ? `
+                <span class="bc-day-detail">
+                  <i class="bc-marker" aria-hidden="true"></i>
+                  <span class="bc-day-count">${day.bills.length}</span>
+                </span>
+              ` : ""}
+            </button>`;
+        }).join("")}
+      </div>
+      <div class="bc-legend" aria-label="Calendar status legend">${legend}</div>
+      <div class="bc-selected" id="bc-selected" aria-live="polite">
+        ${selectedDayHTML(selectedDate,model)}
+      </div>
+      <p class="pr-note bc-footnote">
+        The calendar doesn't record payments. Paid and partial statuses reflect
+        actual linked Spending expenses.
+      </p>
+    </section>
+  `;
+}
 
   // Preserve all earlier rendering wrappers and recurring-editor behavior.
   const previousRender = render;
@@ -105,7 +131,12 @@
     const result = previousRender(...args);
     if (view === "recurring") {
       const calendar = calendarHTML();
-      if (calendar) root.querySelector(".pr-panel")?.insertAdjacentHTML("afterend", calendar);
+      if (calendar) {
+        root.querySelector(".pr-panel > .panel-head")?.insertAdjacentHTML("afterend", calendar);
+      }
+    } else if (view === "dashboard") {
+      // Defensive cleanup if old and new PWA assets were temporarily mixed.
+      root.querySelector(".bc-reminders")?.remove();
     }
     return result;
   };

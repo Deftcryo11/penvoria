@@ -126,3 +126,26 @@ test("Overview grouping never mutates original payment records or bill order", (
   overviewReminders(source,[],"2026-11-09",3);
   assert.equal(JSON.stringify(source),before);
 });
+
+
+test("calendar displays near Recurring header and marks paid/partial/overdue", () => {
+  const path = require("node:path"), fs = require("node:fs");
+  const root = path.join(__dirname,"..");
+  const ui = fs.readFileSync(path.join(root,"bills-calendar-ui.js"),"utf8");
+  const css = fs.readFileSync(path.join(root,"bills-calendar.css"),"utf8");
+  assert.match(ui,/pr-panel > \.panel-head/);
+  assert.match(ui,/bc-legend/);
+  assert.match(ui,/bc-day-count/);
+  assert.match(ui,/aria-pressed/);
+  assert.match(css,/bc-day\[data-bc-mark="paid"\]/);
+  assert.match(css,/bc-day\[data-bc-mark="overdue"\]/);
+  assert.match(css,/bc-day\[data-bc-mark="partial"\]/);
+});
+
+test("old duplicate Bill Reminders section is not generated", () => {
+  const fs = require("node:fs"), path = require("node:path");
+  const root = path.join(__dirname,"..");
+  const ui = fs.readFileSync(path.join(root,"bills-calendar-ui.js"),"utf8");
+  assert.doesNotMatch(ui, /function remindersHTML\(/);
+  assert.match(ui, /root\.querySelector\("\.bc-reminders"\)\?\.remove\(\)/);
+});
