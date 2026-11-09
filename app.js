@@ -112,12 +112,13 @@ function data(selectedMonth = month) {
       needs: [],
       expenses: [],
       savings: [],
+      goals: [],
     };
   }
 
   const record = state.months[selectedMonth];
 
-  for (const key of ["income", "needs", "expenses", "savings"]) {
+  for (const key of ["income", "needs", "expenses", "savings", "goals"]) {
     if (!Array.isArray(record[key])) {
       record[key] = [];
     }
@@ -1496,6 +1497,7 @@ const viewNames = {
   planning: "Planning",
   spending: "Spending",
   history: "Monthly history",
+  goals: "Savings goals",
 };
 
 function render() {
@@ -1721,6 +1723,9 @@ function openModal(type, id = null, options = {}) {
       record?.transferred ?? 0,
       'min="0" step="0.01"',
     );
+    html += window.PenvoriaGoals?.optionsHTML(
+      record?.goalId || options.goalId || "", month
+    ) || "";
   }
 
   if (type !== "needs") {
@@ -1945,6 +1950,14 @@ $("#entryForm").addEventListener("submit", (event) => {
     }
 
     record.transferred = round(transferred);
+
+    const goalId = String(formData.get("goalId") || "");
+    if (goalId && window.PenvoriaGoals?.validLink(goalId, month)) {
+      record.goalId = goalId;
+    } else if (goalId) {
+      alert("That savings goal is unavailable for this month. Reopen the form.");
+      return;
+    }
   }
 
   if (type === "needs" || type === "expenses") {

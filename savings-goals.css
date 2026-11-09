@@ -1,0 +1,16 @@
+/* Savings Goals uses existing Penvoria theme variables. */
+.pg-shortcut{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.pg-shortcut .panel-sub{margin:0}.pg-shortcut button{min-height:40px}
+.pg-list{display:grid;gap:12px;margin-top:16px}
+.pg-card{border:1px solid var(--border);border-radius:12px;background:var(--bg);padding:15px;min-width:0}
+.pg-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.pg-card h3{margin:0 0 5px;font-size:15px}.pg-card small,.pg-meta,.pg-muted{color:var(--muted);font-size:12px}
+.pg-card strong{font-size:13px;overflow-wrap:anywhere}.pg-progress{height:9px;border-radius:99px;background:var(--border);overflow:hidden;margin:14px 0}
+.pg-progress span{display:block;height:100%;background:var(--accent);border-radius:99px}
+.pg-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.pg-actions button{min-height:40px}
+.pg-editor{border-color:var(--accent)}
+.pg-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
+.pg-fields label{display:grid;gap:5px;font-size:13px;font-weight:600;min-width:0}
+.pg-fields input{min-width:0;width:100%;min-height:43px;border:1px solid var(--border);border-radius:8px;padding:9px;background:var(--panel);color:var(--text);font-size:16px}
+@media(max-width:700px){.pg-fields{grid-template-columns:minmax(0,1fr)}.pg-actions button{flex:1 1 auto}.pg-shortcut button{width:100%}}
