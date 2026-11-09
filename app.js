@@ -1498,6 +1498,7 @@ const viewNames = {
   spending: "Spending",
   history: "Monthly history",
   goals: "Savings goals",
+  insights: "Spending insights",
 };
 
 function render() {

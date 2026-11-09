@@ -1,0 +1,30 @@
+/* v1.7 spending insights, respecting light/dark Penvoria tokens. */
+.si-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+.si-kpis>div{border:1px solid var(--border);background:var(--bg);padding:12px;border-radius:11px;min-width:0}
+.si-kpis span,.si-compare small{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}
+.si-kpis strong,.si-compare strong{font-size:16px;overflow-wrap:anywhere}
+.si-compare{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}
+.si-compare>div{padding:13px;border:1px solid var(--border);border-radius:10px;background:var(--bg);min-width:0}
+.si-trend{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;overflow-x:auto;margin:16px 0 8px}
+.si-month{display:grid;grid-template-rows:auto 170px auto;gap:7px;text-align:center;min-width:0}
+.si-month strong{font-size:10px;overflow-wrap:anywhere}
+.si-month small{color:var(--muted);font-size:11px}
+.si-bar-area{display:flex;align-items:flex-end;justify-content:center;min-width:0;border-bottom:1px solid var(--border)}
+.si-bar{width:55%;min-height:0;background:var(--accent);border-radius:6px 6px 0 0}
+.si-category-list{display:grid;gap:16px;margin-top:15px}
+.si-category-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px}
+.si-category-top strong{overflow-wrap:anywhere}.si-category small{font-size:12px;color:var(--muted);display:block;margin-top:5px}
+.si-category-track{height:9px;background:var(--bg);border-radius:99px;margin:9px 0;overflow:hidden}
+.si-category-track span{display:block;background:var(--accent);height:100%;border-radius:99px}
+.si-warning{color:var(--danger);font-weight:700;font-size:13px;margin-top:14px}
+.si-days{display:grid;gap:10px;margin-top:14px}
+.si-days>div{display:flex;justify-content:space-between;gap:10px;padding-bottom:9px;border-bottom:1px solid var(--border);font-size:13px}
+.si-shortcut{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.si-shortcut .panel-sub{margin:0}.si-shortcut button{min-height:40px}
+@media(max-width:700px){
+ .si-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .si-compare{grid-template-columns:minmax(0,1fr)}
+ .si-trend{gap:3px}.si-month{grid-template-rows:auto 120px auto}
+ .si-month strong{font-size:9px}
+ .si-shortcut button{width:100%}
+}
