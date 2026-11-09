@@ -36,6 +36,8 @@
   const app=fs.readFileSync(path.join(root,"app.js"),"utf8");
   const ui=fs.readFileSync(path.join(root,"savings-goals.js"),"utf8");
   assert.match(app,/record\.goalId = goalId/);
+  assert.match(app,/validLink\(goalId, month, id\)/);
+  assert.match(ui,/g\.archived/);
   assert.match(ui,/queueSave\(key,state\.months\[key\]\)/);
  });
 })();

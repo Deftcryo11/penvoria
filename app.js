@@ -1953,7 +1953,7 @@ $("#entryForm").addEventListener("submit", (event) => {
     record.transferred = round(transferred);
 
     const goalId = String(formData.get("goalId") || "");
-    if (goalId && window.PenvoriaGoals?.validLink(goalId, month)) {
+    if (goalId && window.PenvoriaGoals?.validLink(goalId, month, id)) {
       record.goalId = goalId;
     } else if (goalId) {
       alert("That savings goal is unavailable for this month. Reopen the form.");

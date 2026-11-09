@@ -8,8 +8,15 @@
  const isReady=()=>!!window.penvoriaCloud?.ready&&!!window.penvoriaCloud?.user;
  const list=()=>model.collectGoals(state.months||{});
  const find=id=>list().find(x=>x.id===id);
- function validLink(id,key){
-  const g=find(id);return!!(g&&!g.archived&&g.ownerMonth<=key);
+ function validLink(id,key,entryId=null){
+  const g=find(id);
+  if(!g||g.ownerMonth>key)return false;
+  if(!g.archived)return true;
+  // Existing Savings entries remain editable after their goal is archived.
+  // Archived goals cannot be newly attached to a different transfer.
+  return!!(entryId&&state.months?.[key]?.savings?.some(
+    x=>x.id===entryId&&x.goalId===id
+  ));
  }
  function optionsHTML(selected="",key=month){
   if(!isReady())return"";
