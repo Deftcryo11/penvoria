@@ -61,6 +61,7 @@
     <script src="cloud.js" defer></script>
     <script src="cloud-refresh.js" defer></script>
     <script src="conflict-recovery.js" defer></script>
+    <script src="month-delete-safety.js" defer></script>
     <script src="history-month-delete.js" defer></script>
 
     <!-- PDF generation libraries -->
@@ -77,6 +78,7 @@
     <!-- Penvoria export feature -->
     <script src="export.js" defer></script>
     <script src="report-range.js" defer></script>
+    <script src="mobile-more-nav.js" defer></script>
     <script src="pwa.js" defer></script>
   </head>
 
@@ -394,32 +396,25 @@
         <span>Spending</span>
       </button>
 
-      <button
-        class="mobile-nav-item"
-        type="button"
-        data-mobile-view="history"
-        aria-label="Monthly history"
-      >
+      <button class="mobile-nav-item" type="button" data-mobile-view="goals" aria-label="Savings goals">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M3 5v5h5" />
-          <path d="M4 10a9 9 0 1 1 2 8" />
-          <path d="M12 7v5l3 2" />
+          <circle cx="12" cy="12" r="9"/><path d="M14.5 8.5H11a2.5 2.5 0 0 0 0 5h2a2.5 2.5 0 0 1 0 5H9.5M12 6.5v12"/>
         </svg>
-        <span>History</span>
+        <span>Goals</span>
       </button>
 
-      <button
-        class="mobile-nav-item"
-        type="button"
-        data-mobile-view="recurring"
-        aria-label="Recurring transactions"
-      >
+      <button class="mobile-nav-item" type="button" id="mobileMoreButton"
+        aria-label="More pages" aria-controls="mobileMoreMenu" aria-expanded="false">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M20 11a8 8 0 1 0-2 6" />
-          <path d="M20 4v7h-7" />
+          <circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>
         </svg>
-        <span>Recurring</span>
+        <span>More</span>
       </button>
+      <div id="mobileMoreMenu" class="mobile-more-menu" hidden aria-label="Additional pages">
+        <button type="button" data-mobile-view="insights">Spending insights</button>
+        <button type="button" data-mobile-view="history">Monthly history</button>
+        <button type="button" data-mobile-view="recurring">Recurring transactions</button>
+      </div>
     </nav>
 
     <!-- =====================================

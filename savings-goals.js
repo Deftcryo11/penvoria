@@ -4,14 +4,14 @@
  const model=window.PenvoriaGoalsModel;
  if(!root||!model)return;
  const safe=value=>escapeHtml(value==null?"":String(value));
- let editingId=null,showArchived=false;
+ let editingId=null,showArchived=false,showDeleted=false;
  const isReady=()=>!!window.penvoriaCloud?.ready&&!!window.penvoriaCloud?.user;
- const list=()=>model.collectGoals(state.months||{});
+ const list=(includeDeleted=false)=>model.collectGoals(state.months||{},null,includeDeleted);
  const find=id=>list().find(x=>x.id===id);
  function validLink(id,key,entryId=null){
-  const g=find(id);
+  const g=list(true).find(x=>x.id===id);
   if(!g||g.ownerMonth>key)return false;
-  if(!g.archived)return true;
+  if(!g.archived&&!g.deleted)return true;
   // Existing Savings entries remain editable after their goal is archived.
   // Archived goals cannot be newly attached to a different transfer.
   return!!(entryId&&state.months?.[key]?.savings?.some(
@@ -20,12 +20,12 @@
  }
  function optionsHTML(selected="",key=month){
   if(!isReady())return"";
-  const options=list().filter(g=>g.ownerMonth<=key&&(!g.archived||g.id===selected));
+  const options=list(true).filter(g=>g.ownerMonth<=key&&(!g.archived&&!g.deleted||g.id===selected));
   return `<div class="field">
     <label for="f_goalId">Savings goal (optional)</label>
     <select id="f_goalId" name="goalId"><option value="">No linked goal</option>
     ${options.map(g=>`<option value="${safe(g.id)}" ${selected===g.id?"selected":""}>
-      ${safe(g.title)}${g.archived?" (archived)":""}</option>`).join("")}
+      ${safe(g.title)}${g.deleted?" (deleted)":g.archived?" (archived)":""}</option>`).join("")}
     </select><small>Only the amount actually transferred counts as progress.</small></div>`;
  }
  function canEdit(key){
@@ -44,6 +44,23 @@
    <div class="pg-actions"><button class="primary" type="submit">Save goal</button>
     <button class="secondary" type="button" data-pg-cancel>Cancel</button></div></form></section>`;
  }
+ function transactionsHTML(g){
+  const entries=model.linkedTransactions(g,state.months||{});
+  return `<details class="pg-transactions">
+    <summary>Linked savings entries (${entries.length})</summary>
+    ${entries.length?`<ul class="pg-transaction-list">
+      ${entries.map(item=>`<li>
+        <div><strong>${safe(item.title)}</strong>
+          <small>${safe(item.date||item.month)}</small></div>
+        <div class="pg-transaction-values">
+          <strong>${money(item.transferred)} transferred</strong>
+          <small>${money(item.planned)} planned</small>
+        </div>
+      </li>`).join("")}
+    </ul>`:'<p class="pg-muted">No linked savings entries.</p>'}
+    <p class="pg-muted">These are saved Savings entries. Edit their details in Planning for the corresponding month.</p>
+  </details>`;
+ }
  function card(g){
   const p=model.goalProgress(g,state.months);
   return `<article class="pg-card">
@@ -54,15 +71,18 @@
       aria-valuenow="${p.percent}" aria-valuemin="0" aria-valuemax="100">
       <span style="width:${p.percent}%"></span></div>
     <p class="pg-meta">${p.percent.toFixed(1)}% funded · ${money(p.remaining)} remaining · ${p.count} transfer(s)</p>
+    ${transactionsHTML(g)}
     <div class="pg-actions">
-      ${g.archived?"":`<button type="button" class="primary" data-pg-contribute="${safe(g.id)}">Record transfer</button>`}
+      ${g.deleted?`<button type="button" class="secondary" data-pg-undelete="${safe(g.id)}">Restore deleted goal</button>`:
+      `${g.archived?"":`<button type="button" class="primary" data-pg-contribute="${safe(g.id)}">Record transfer</button>`}
       <button type="button" class="secondary" data-pg-edit="${safe(g.id)}">Edit</button>
       <button type="button" class="secondary" data-pg-archive="${safe(g.id)}">${g.archived?"Restore":"Archive"}</button>
+      ${g.archived?`<button type="button" class="secondary pg-delete" data-pg-delete="${safe(g.id)}">Delete goal</button>`:""}`}
     </div></article>`;
  }
  function goalsHTML(){
   if(!isReady())return'<section class="panel"><h2>Savings goals</h2><p>Sign in to view your goals.</p></section>';
-  const records=list(),active=records.filter(x=>!x.archived),archived=records.filter(x=>x.archived);
+  const all=list(true),records=all.filter(x=>!x.deleted),deleted=all.filter(x=>x.deleted),active=records.filter(x=>!x.archived),archived=records.filter(x=>x.archived);
   const cents=arr=>arr.reduce((n,g)=>n+Math.round(g.target*100),0)/100;
   const amounts=active.reduce((n,g)=>n+Math.round(model.goalProgress(g,state.months).transferred*100),0)/100;
   return `<section class="panel">
@@ -79,6 +99,11 @@
    ${archived.length?`<section class="panel"><div class="panel-head"><h2>Archived (${archived.length})</h2>
     <button type="button" class="secondary" data-pg-toggle>${showArchived?"Hide":"Show"} archived</button></div>
     ${showArchived?`<div class="pg-list">${archived.map(card).join("")}</div>`:""}
+   </section>`:""}
+   ${deleted.length?`<section class="panel"><div class="panel-head"><h2>Deleted goals (${deleted.length})</h2>
+    <button type="button" class="secondary" data-pg-toggle-deleted>${showDeleted?"Hide":"Show"} deleted</button></div>
+    <p class="pg-muted">Deleted goals are hidden from active and archived lists. Their saved transactions are preserved. You can restore them here.</p>
+    ${showDeleted?`<div class="pg-list">${deleted.map(card).join("")}</div>`:""}
    </section>`:""}`;
  }
  const oldRender=render;
@@ -98,6 +123,27 @@
   if(btn.hasAttribute("data-pg-new")){editingId="new";render();return;}
   if(btn.hasAttribute("data-pg-cancel")){editingId=null;render();return;}
   if(btn.hasAttribute("data-pg-toggle")){showArchived=!showArchived;render();return;}
+  if(btn.hasAttribute("data-pg-toggle-deleted")){showDeleted=!showDeleted;render();return;}
+  if(btn.dataset.pgDelete||btn.dataset.pgUndelete){
+   const deleting=!!btn.dataset.pgDelete;
+   const g=list(true).find(x=>x.id===(btn.dataset.pgDelete||btn.dataset.pgUndelete));
+   if(!g||(deleting?(!g.archived||g.deleted):!g.deleted))return;
+   if(!canEdit(g.ownerMonth)){alert("Wait for All changes saved and resolve cloud conflicts before modifying this goal.");return;}
+   const entries=model.linkedTransactions(g,state.months||{});
+   if(!confirm(deleting?
+     `Delete archived goal "${g.title}"?\n\nIt will disappear from the goal lists. ${entries.length} linked savings entries will remain unchanged. You can restore this goal under Deleted goals.`:
+     `Restore deleted goal "${g.title}" to Archived goals?`))return;
+   if(!canEdit(g.ownerMonth))return;
+   const item=state.months[g.ownerMonth]?.goals?.find(x=>x.id===g.id);
+   if(!item||Boolean(item.deleted)===deleting)return;
+   item.deleted=deleting;
+   // An undeleted goal stays archived until explicitly restored.
+   item.archived=true;
+   persist(g.ownerMonth);
+   editingId=null;
+   render();
+   return;
+  }
   if(btn.dataset.pgEdit){editingId=btn.dataset.pgEdit;render();return;}
   if(btn.dataset.pgContribute){
    const g=find(btn.dataset.pgContribute);

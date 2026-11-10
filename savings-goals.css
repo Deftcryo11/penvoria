@@ -14,3 +14,16 @@
 .pg-fields label{display:grid;gap:5px;font-size:13px;font-weight:600;min-width:0}
 .pg-fields input{min-width:0;width:100%;min-height:43px;border:1px solid var(--border);border-radius:8px;padding:9px;background:var(--panel);color:var(--text);font-size:16px}
 @media(max-width:700px){.pg-fields{grid-template-columns:minmax(0,1fr)}.pg-actions button{flex:1 1 auto}.pg-shortcut button{width:100%}}
+
+/* Saved transfers linked to active, archived and recoverably deleted goals. */
+.pg-transactions{margin-top:14px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--panel)}
+.pg-transactions summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--text);padding:3px 0}
+.pg-transactions summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.pg-transaction-list{list-style:none;margin:12px 0 8px;padding:0;display:grid;gap:10px}
+.pg-transaction-list li{display:flex;align-items:start;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--border)}
+.pg-transaction-list li>div{min-width:0}
+.pg-transaction-list strong{display:block;font-size:13px;overflow-wrap:anywhere}
+.pg-transaction-list small{display:block;margin-top:4px;color:var(--muted)}
+.pg-transaction-values{text-align:right}
+.pg-delete{color:var(--danger,#d25b58)!important}
+@media(max-width:500px){.pg-transaction-list li{gap:8px}.pg-transaction-values{max-width:50%}}
