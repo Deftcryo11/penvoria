@@ -34,9 +34,9 @@
       <p>
         This permanently deletes all income,
         needs, spending and savings recorded
-        for this month. Savings goal definitions created
-        in this month will also be removed. Recurring templates
-        are kept.
+        for this month. Recurring templates are kept.
+        Months containing savings goal definitions cannot be
+        deleted, even when the goals are archived.
       </p>
 
       
@@ -180,6 +180,12 @@
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(key) || !state.months[key]) {
       throw new Error("The selected month is no longer available.");
     }
+
+    // Goals live in the creation month. Never delete their owner record.
+    if (!window.PenvoriaMonthDeleteSafety) {
+      throw new Error("Month deletion safety checks are unavailable. Refresh Penvoria.");
+    }
+    window.PenvoriaMonthDeleteSafety.requireSafe(state.months, key);
 
     if (
       !cloud.ready ||
@@ -350,7 +356,7 @@
 
       const { data: remote, error: readError } = await cloud.client
         .from("monthly_budgets")
-        .select("revision")
+        .select("revision,data")
         .eq("user_id", accountId)
         .eq("month", `${key}-01`)
         .maybeSingle();
@@ -366,6 +372,14 @@
         throw new Error(
           "This account or month's data changed. " +
             "Cancel and review it again.",
+        );
+      }
+
+      // Also inspect the cloud copy; local data could be out of date.
+      // Fail closed before invoking the destructive operation.
+      if (remote) {
+        window.PenvoriaMonthDeleteSafety.requireSafe(
+          { [key]: remote.data }, key
         );
       }
 
