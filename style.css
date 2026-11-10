@@ -2004,3 +2004,75 @@ body.dark .allocation-inline-alert.approaching {
     font-size: 9px;
   }
 }
+
+
+/* iPhone tab-bar stability and compact secondary navigation */
+@media (max-width: 700px) {
+  .mobile-bottom-nav {
+    isolation: isolate;
+  }
+  .mobile-more-menu[hidden] { display: none !important; }
+  .mobile-more-menu {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: max(8px, env(safe-area-inset-right));
+    left: auto;
+    z-index: 11;
+    display: grid;
+    width: min(260px, calc(100vw - 24px));
+    gap: 4px;
+    padding: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    box-shadow: 0 10px 28px rgba(0,0,0,.18);
+  }
+  .mobile-more-menu button {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    text-align: left;
+    border: none;
+    border-radius: 9px;
+    padding: 10px 13px;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .mobile-more-menu button.active {
+    color: var(--accent);
+    background: var(--accent2);
+  }
+  .mobile-more-menu button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+}
+@media (max-width: 700px) and (display-mode: standalone) {
+  /* 100svh avoids WebKit dynamic toolbar/visual viewport height shifts. */
+  html:has(body.authenticated) {
+    width: 100%;
+    height: 100%;
+    overscroll-behavior: none;
+  }
+  body.authenticated {
+    height: 100svh;
+    max-height: 100svh;
+    overscroll-behavior: none;
+  }
+  body.authenticated .shell {
+    min-height: 0;
+  }
+  body.authenticated .main {
+    overscroll-behavior-y: none;
+  }
+  body.authenticated .mobile-bottom-nav {
+    flex-shrink: 0;
+    bottom: auto;
+    margin-top: auto;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+}
