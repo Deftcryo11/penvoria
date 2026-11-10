@@ -6,13 +6,13 @@
   const date=new Date(Date.UTC(Number(key.slice(0,4)),Number(key.slice(5,7))-1,Number(key.slice(8))));
   return date.toISOString().slice(0,10)===key;
  }
- function collectGoals(months,selectedMonth=null) {
+ function collectGoals(months,selectedMonth=null,includeDeleted=false) {
   const records=months&&typeof months==="object"?months:{};
   const result=[],seen=new Set();
   for(const key of Object.keys(records).sort()){
    if(!validMonth(key)||(selectedMonth&&key>selectedMonth))continue;
    for(const goal of Array.isArray(records[key]?.goals)?records[key].goals:[]){
-    if(!goal||typeof goal.id!=="string"||!goal.id||seen.has(goal.id))continue;
+    if(!goal||typeof goal.id!=="string"||!goal.id||seen.has(goal.id)||(!includeDeleted&&goal.deleted))continue;
     const amount=Number(goal.target);
     if(!Number.isFinite(amount)||amount<=0)continue;
     seen.add(goal.id);
