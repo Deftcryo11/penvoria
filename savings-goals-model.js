@@ -38,7 +38,30 @@
    percent:Math.min(100,Math.round(cents/target*10000)/100),count
   };
  }
- const api={validMonth,validDate,collectGoals,goalProgress};
+
+ // Display all saved entries linked to a goal, including zero-transfer plans.
+ // This is read-only and does not change existing financial records.
+ function linkedTransactions(goal,months) {
+  if(!goal?.id)return[];
+  const result=[];
+  for(const key of Object.keys(months||{}).sort()){
+   if(!validMonth(key)||key<goal.ownerMonth)continue;
+   const entries=Array.isArray(months[key]?.savings)?months[key].savings:[];
+   for(const item of entries){
+    if(!item||item.goalId!==goal.id)continue;
+    const planned=Number(item.amount),transferred=Number(item.transferred);
+    result.push({
+     month:key,id:typeof item.id==="string"?item.id:"",
+     title:String(item.title||"Savings entry"),
+     date:validDate(item.date)&&item.date.startsWith(key+"-")?item.date:null,
+     planned:Number.isFinite(planned)&&planned>=0?Math.round(planned*100)/100:0,
+     transferred:Number.isFinite(transferred)&&transferred>=0?Math.round(transferred*100)/100:0
+    });
+   }
+  }
+  return result.sort((a,b)=>(b.date||b.month).localeCompare(a.date||a.month)||a.title.localeCompare(b.title));
+ }
+ const api={validMonth,validDate,collectGoals,goalProgress,linkedTransactions};
  if(typeof window!=="undefined")window.PenvoriaGoalsModel=api;
  if(typeof module!=="undefined"&&module.exports)module.exports=api;
 })();
