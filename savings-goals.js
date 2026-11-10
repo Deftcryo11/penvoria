@@ -9,9 +9,9 @@
  const list=(includeDeleted=false)=>model.collectGoals(state.months||{},null,includeDeleted);
  const find=id=>list().find(x=>x.id===id);
  function validLink(id,key,entryId=null){
-  const g=find(id);
+  const g=list(true).find(x=>x.id===id);
   if(!g||g.ownerMonth>key)return false;
-  if(!g.archived)return true;
+  if(!g.archived&&!g.deleted)return true;
   // Existing Savings entries remain editable after their goal is archived.
   // Archived goals cannot be newly attached to a different transfer.
   return!!(entryId&&state.months?.[key]?.savings?.some(
@@ -20,12 +20,12 @@
  }
  function optionsHTML(selected="",key=month){
   if(!isReady())return"";
-  const options=list().filter(g=>g.ownerMonth<=key&&(!g.archived||g.id===selected));
+  const options=list(true).filter(g=>g.ownerMonth<=key&&(!g.archived&&!g.deleted||g.id===selected));
   return `<div class="field">
     <label for="f_goalId">Savings goal (optional)</label>
     <select id="f_goalId" name="goalId"><option value="">No linked goal</option>
     ${options.map(g=>`<option value="${safe(g.id)}" ${selected===g.id?"selected":""}>
-      ${safe(g.title)}${g.archived?" (archived)":""}</option>`).join("")}
+      ${safe(g.title)}${g.deleted?" (deleted)":g.archived?" (archived)":""}</option>`).join("")}
     </select><small>Only the amount actually transferred counts as progress.</small></div>`;
  }
  function canEdit(key){
@@ -51,7 +51,7 @@
     ${entries.length?`<ul class="pg-transaction-list">
       ${entries.map(item=>`<li>
         <div><strong>${safe(item.title)}</strong>
-          <small>${safe(item.date||item.month)} · ${safe(item.month)}</small></div>
+          <small>${safe(item.date||item.month)}</small></div>
         <div class="pg-transaction-values">
           <strong>${money(item.transferred)} transferred</strong>
           <small>${money(item.planned)} planned</small>
@@ -135,7 +135,7 @@
      `Restore deleted goal "${g.title}" to Archived goals?`))return;
    if(!canEdit(g.ownerMonth))return;
    const item=state.months[g.ownerMonth]?.goals?.find(x=>x.id===g.id);
-   if(!item||!!item.deleted===!deleting)return;
+   if(!item||Boolean(item.deleted)===deleting)return;
    item.deleted=deleting;
    // An undeleted goal stays archived until explicitly restored.
    item.archived=true;
